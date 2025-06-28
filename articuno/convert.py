@@ -5,22 +5,26 @@ from typing import (
     Optional,
     Type,
 )
-import polars as pl
-from pydantic import BaseModel, create_model
 from datetime import datetime, date, time, timedelta
 from decimal import Decimal
 
+import polars as pl
+from pydantic import BaseModel, create_model
+
+
 def df_to_pydantic(
     df: pl.DataFrame,
-    model: Optional[Type[BaseModel]] = None
+    model: Optional[Type[BaseModel]] = None,
+    model_name: str = "AutoModel"
 ) -> List[BaseModel]:
     """
     Convert a Polars DataFrame to a list of Pydantic model instances.
     If no model is provided, infer one from the DataFrame schema.
     """
     if model is None:
-        model = infer_pydantic_model(df)
+        model = infer_pydantic_model(df, model_name=model_name)
     return [model(**row) for row in df.to_dicts()]
+
 
 def infer_pydantic_model(
     df: pl.DataFrame,
