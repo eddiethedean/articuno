@@ -129,7 +129,7 @@ Alice
 
 ---
 
-## 𞧯 When to Use Articuno
+## ⏰ When to Use Articuno
 
 - ✅ You use **Polars** and want **type-safe modeling**
 - ✅ You dynamically load or transform tabular data
