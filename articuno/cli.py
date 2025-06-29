@@ -1,0 +1,132 @@
+import importlib.util
+import re
+import sys
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+
+import polars as pl
+import typer
+from rich.console import Console
+
+from articuno.convert import infer_pydantic_model
+from articuno.codegen import generate_pydantic_class_code
+from articuno.bootstrap import get_inference_registry
+
+
+app = typer.Typer()
+console = Console()
+
+
+def backup_file(file_path: Path) -> Path:
+    if not file_path.exists():
+        return file_path
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_path = file_path.with_name(f"{file_path.stem}_backup_{timestamp}{file_path.suffix}")
+    backup_path.write_bytes(file_path.read_bytes())
+    return backup_path
+
+
+def insert_model_import(lines: list[str], model_name: str, models_path: Path) -> list[str]:
+    import_line = f"from {models_path.stem} import {model_name}\n"
+    if any(import_line.strip() == line.strip() for line in lines):
+        return lines
+    insert_at = 0
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("from __future__") or stripped.startswith("import "):
+            insert_at = i + 1
+        elif stripped == "" or stripped.startswith("#"):
+            continue
+        else:
+            break
+    lines.insert(insert_at, import_line)
+    return lines
+
+
+def find_and_modify_decorator_line(
+    lines: list[str], func_name: str, model_name: str
+) -> list[str]:
+    http_decorators = ["get", "post", "put", "patch", "delete", "options", "head"]
+    new_lines = lines.copy()
+    func_line_idx = None
+    for i, line in enumerate(new_lines):
+        if line.lstrip().startswith(f"def {func_name}"):
+            func_line_idx = i
+            break
+    if func_line_idx is None:
+        return new_lines
+    for i in range(func_line_idx - 1, -1, -1):
+        stripped = new_lines[i].lstrip()
+        if stripped.startswith("@infer_response_model"):
+            new_lines[i] = ""
+        elif any(stripped.startswith(f"@app.{method}(") for method in http_decorators):
+            if "response_model=" not in new_lines[i]:
+                new_lines[i] = re.sub(
+                    r"\)$",
+                    f", response_model={model_name})",
+                    new_lines[i]
+                )
+            break
+    return new_lines
+
+
+def update_source_file(
+    source_file: Path,
+    model_name: str,
+    models_path: Path,
+    func_name: str,
+) -> None:
+    backup_file(source_file)
+    lines = source_file.read_text(encoding="utf-8").splitlines(keepends=True)
+    lines = insert_model_import(lines, model_name, models_path)
+    lines = find_and_modify_decorator_line(lines, func_name, model_name)
+    source_file.write_text("".join(lines), encoding="utf-8")
+
+
+@app.command()
+def bootstrap(
+    app_path: Path = typer.Argument(..., exists=True),
+    models_path: Optional[Path] = typer.Option(None),
+    dry_run: bool = typer.Option(False, help="Preview changes without writing files"),
+):
+    app_path = app_path.resolve()
+    if models_path is None:
+        models_path = app_path.parent / "models.py"
+    models_path = models_path.resolve()
+    spec = importlib.util.spec_from_file_location(app_path.stem, str(app_path))
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[app_path.stem] = module
+    spec.loader.exec_module(module)
+    registry = get_inference_registry()
+    if not registry:
+        console.print("[yellow]No @infer_response_model endpoints found.[/]")
+        raise typer.Exit(1)
+    for item in registry:
+        func = item["func"]
+        model_name = item["name"]
+        example_input = item["example_input"]
+        model_file_path = Path(item["models_path"] or str(models_path)).resolve()
+        source_file = Path(item["source_file"]).resolve()
+        console.print(f"\n[bold]Processing:[/] {func.__name__}")
+        try:
+            output = func(**example_input)
+        except Exception as e:
+            console.print(f"[red]Error:[/] Failed to call {func.__name__}: {e}")
+            continue
+        if not isinstance(output, pl.DataFrame):
+            console.print(f"[red]Error:[/] Output is not a Polars DataFrame")
+            continue
+        model = infer_pydantic_model(output, model_name=model_name)
+        code = generate_pydantic_class_code(model, model_name=model_name)
+        if dry_run:
+            console.print(code)
+        else:
+            with model_file_path.open("a", encoding="utf-8") as f:
+                f.write("\n\n" + code)
+            update_source_file(source_file, model_name, model_file_path, func.__name__)
+    console.print("\n[green]Bootstrapping complete![/]")
+
+
+if __name__ == "__main__":
+    app()

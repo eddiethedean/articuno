@@ -19,8 +19,12 @@ dependencies = [
 dev = [
     "pytest>=7.0",
     "build",
-    "twine"
+    "twine",
+    "typer"
 ]
 
 [project.urls]
 Homepage = "https://github.com/eddiethedean/articuno"
+
+[project.scripts]
+articuno = "articuno.cli:app"

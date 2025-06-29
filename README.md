@@ -175,6 +175,109 @@ pytest
 
 ---
 
+## 🧙‍♂️ FastAPI Integration (Decorator + CLI Bootstrap)
+Articuno makes it easy to generate response_models for your FastAPI endpoints that return polars.DataFrames — no need to manually define Pydantic models.
+
+### 🧩 Step 1: Add the Decorator
+Use the @infer_response_model decorator on your FastAPI endpoint. Provide:
+
+a name for the generated Pydantic model,
+
+an example input dict to simulate a call to your endpoint,
+
+an optional path to your models.py file (defaults to models.py next to the FastAPI app file).
+
+```python
+from fastapi import FastAPI
+from articuno.decorator import infer_response_model
+import polars as pl
+
+app = FastAPI()
+
+@infer_response_model(
+    name="UserModel",
+    example_input={"limit": 2},
+    models_path="models.py"  # Optional, relative to this file by default
+)
+@app.get("/users")
+def get_users(limit: int):
+    return pl.DataFrame({
+        "name": ["Alice", "Bob"],
+        "age": [30, 25],
+    }).head(limit)
+```
+
+📝 The decorator doesn't change behavior at runtime — it simply registers this endpoint for the CLI to analyze later.
+
+### ⚙️ Step 2: Run the CLI Bootstrap
+After writing or modifying your endpoints, run the Articuno CLI:
+
+```bash
+python cli.py bootstrap app/main.py
+```
+
+This will:
+
+1. Import and call all decorated endpoints with the given example_input
+
+2. Infer a Pydantic model from the returned polars.DataFrame
+
+3. Write the model to the specified models.py file
+
+4. Update your FastAPI app:
+    - Add response_model=YourModel to the route decorator
+    - Import the model at the top
+    - Remove the @infer_response_model(...) decorator
+
+### 🎯 Example Result (After Bootstrapping)
+Before CLI:
+
+```python
+@infer_response_model(name="UserModel", example_input={"limit": 2})
+@app.get("/users")
+def get_users(limit: int):
+    ...
+```
+
+After CLI:
+```python
+from models import UserModel
+
+@app.get("/users", response_model=UserModel)
+def get_users(limit: int):
+    ...
+```
+
+models.py will contain:
+```python
+from pydantic import BaseModel
+
+class UserModel(BaseModel):
+    name: str
+    age: int
+```
+
+---
+
+## 🛠 CLI Options
+
+```bash
+Usage: cli.py bootstrap [OPTIONS] APP_PATH
+
+Arguments:
+  APP_PATH                Path to your FastAPI app file (e.g., app/main.py)
+
+Options:
+  --models-path PATH      Optional output path for models.py (defaults to same folder as app)
+  --dry-run               Preview changes without writing files
+  --help                  Show this message and exit
+```
+
+
+
+
+---
+
 ## 📜 Patito vs Articuno
 
 | Feature                    | **Patito**             | **Articuno**               |
