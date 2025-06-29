@@ -1,6 +1,6 @@
 # Articuno
 
-Convert Polars DataFrames into Pydantic models easily, with automatic schema inference including nested structs and nullable fields.
+Convert Polars DataFrames into Pydantic models easily, with automatic schema inference including nested structs, nullable fields, and Pydantic class code generation.
 
 ---
 
@@ -13,7 +13,7 @@ pip install articuno
 ## Basic Usage
 
 ```python
-from articuno import df_to_pydantic, infer_pydantic_model
+import articuno
 import polars as pl
 
 df = pl.DataFrame({
@@ -22,8 +22,8 @@ df = pl.DataFrame({
     "active": [True, False]
 })
 
-AutoModel = infer_pydantic_model(df)
-models = df_to_pydantic(df, AutoModel)
+AutoModel = articuno.infer_pydantic_model(df)
+models = articuno.df_to_pydantic(df, AutoModel)
 
 for model in models:
     print(model)
@@ -39,8 +39,8 @@ df = pl.DataFrame({
     ]
 })
 
-Model = infer_pydantic_model(df)
-instances = df_to_pydantic(df, Model)
+Model = articuno.infer_pydantic_model(df)
+instances = articuno.df_to_pydantic(df, Model)
 
 print(instances[0].user.name)          # Alice
 print(instances[1].user.address.zip)  # 90001
@@ -57,8 +57,8 @@ df = pl.DataFrame({
     pl.col("age").cast(pl.Int32).set_nullable(True)
 ])
 
-Model = infer_pydantic_model(df)
-instances = df_to_pydantic(df, Model)
+Model = articuno.infer_pydantic_model(df)
+instances = articuno.df_to_pydantic(df, Model)
 
 print(instances[0].name)  # Alice
 print(instances[1].name)  # None
@@ -92,5 +92,44 @@ people = df_to_pydantic(df, Person)
 - Other: `Decimal`, `Binary`, `Categorical`, `Enum`, `Null`
 
 
+## Generate Pydantic Class Code
+
+### Example Usage
+
+```python
+from pydantic import create_model
+import articuno
+
+# Create a dynamic model
+DynamicUser = create_model('DynamicUser', name=(str, ...), age=(int, 0))
+
+# Generate the class code
+code = articuno.generate_pydantic_class_code(DynamicUser)
+
+print(code)
+```
+
+### Output
+
+```python
+from __future__ import annotations
+from pydantic import BaseModel
+
+class DynamicUser(BaseModel):
+    name: str
+    age: int = 0
+```
+
+### Saving to a File
+To write the generated code to a Python file:
+```python
+articuno.generate_pydantic_class_code(DynamicUser, output_path="user_model.py")
+```
+
+### Custom Class Name
+To override the class name in the output (useful for renaming dynamic models):
+```python
+articuno.generate_pydantic_class_code(DynamicUser, model_name="User")
+```
 
 

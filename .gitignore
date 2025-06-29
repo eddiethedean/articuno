@@ -3,6 +3,7 @@ __pycache__/
 .pytest_cache/
 build/
 dist/
+notebooks/
 *.egg-info/
 *.log
 *.pyc
