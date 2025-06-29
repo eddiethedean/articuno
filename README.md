@@ -1,135 +1,160 @@
-# Articuno
+# 🧊 Articuno
 
-Convert Polars DataFrames into Pydantic models easily, with automatic schema inference including nested structs, nullable fields, and Pydantic class code generation.
+Convert Polars DataFrames to Pydantic models — and optionally generate clean Python code from them.
+
+> A blazing-fast tool for schema inference, data validation, and model generation powered by [Polars](https://pola.rs/), [Pydantic](https://docs.pydantic.dev/), and [datamodel-code-generator](https://github.com/koxudaxi/datamodel-code-generator).
 
 ---
 
-## Installation
+## 🚀 Features
+
+- 🔍 **Infer Pydantic models** directly from `polars.DataFrame` schemas
+- 🧪 **Validate data** by converting DataFrame rows to Pydantic instances
+- 🧱 **Supports nested Structs**, Lists, Nullable fields, and advanced types
+- 🧬 **Generate Pydandic model code** from dynamic models using `datamodel-code-generator`
+
+---
+
+## 📦 Installation
 
 ```bash
 pip install articuno
 ```
 
-## Basic Usage
+## 🛠 Usage
+
+### 1. Convert a DataFrame to Pydantic Models
 
 ```python
-import articuno
 import polars as pl
+from articuno.convert import df_to_pydantic
 
 df = pl.DataFrame({
     "name": ["Alice", "Bob"],
     "age": [30, 25],
-    "active": [True, False]
+    "is_active": [True, False],
 })
 
-AutoModel = articuno.infer_pydantic_model(df)
-models = articuno.df_to_pydantic(df, AutoModel)
+models = df_to_pydantic(df)
 
-for model in models:
-    print(model)
+# models[0] is a Pydantic model instance
+print(models[0].dict())
 ```
 
-## Handling Nested Structs
-
+### Output:
 ```python
-df = pl.DataFrame({
-    "user": [
-        {"name": "Alice", "address": {"city": "NY", "zip": 10001}},
-        {"name": "Bob", "address": {"city": "LA", "zip": 90001}},
-    ]
-})
-
-Model = articuno.infer_pydantic_model(df)
-instances = articuno.df_to_pydantic(df, Model)
-
-print(instances[0].user.name)          # Alice
-print(instances[1].user.address.zip)  # 90001
+name='Alice' age=30 is_active=True
+{'name': 'Alice', 'age': 30, 'is_active': True}
 ```
 
-## Nullable Fields
+### 2. Infer a Model Only
 
 ```python
-df = pl.DataFrame({
-    "name": ["Alice", None],
-    "age": [30, None]
-}).with_columns([
-    pl.col("name").cast(pl.Utf8).set_nullable(True),
-    pl.col("age").cast(pl.Int32).set_nullable(True)
-])
+from articuno.convert import infer_pydantic_model
 
-Model = articuno.infer_pydantic_model(df)
-instances = articuno.df_to_pydantic(df, Model)
-
-print(instances[0].name)  # Alice
-print(instances[1].name)  # None
-print(instances[1].age)   # None
+model = infer_pydantic_model(df, model_name="UserModel")
+print(model.schema_json(indent=2))
 ```
 
-## Using a Custom Pydantic Model
+### Output (snippet):
 
-```python
-from pydantic import BaseModel
-
-class Person(BaseModel):
-    name: str
-    age: int
-
-df = pl.DataFrame({
-    "name": ["Alice", "Bob"],
-    "age": [30, 25],
-})
-
-people = df_to_pydantic(df, Person)
+```json
+{
+  "title": "UserModel",
+  "type": "object",
+  "properties": {
+    "name": { "title": "Name", "type": "string" },
+    "age": { "title": "Age", "type": "integer" },
+    "is_active": { "title": "Is Active", "type": "boolean" }
+  },
+  "required": ["name", "age", "is_active"]
+}
 ```
 
-## Supported Polars Types
-
-- Numeric types: `Int8`–`Int64`, `UInt8–UInt64`, `Float32`, `Float64`
-- String: `Utf8`
-- Boolean
-- Date and time: `Date`, `Datetime`, `Time`, `Duration`
-- Complex types: `List`, `Struct`
-- Other: `Decimal`, `Binary`, `Categorical`, `Enum`, `Null`
-
-
-## Generate Pydantic Class Code
-
-### Example Usage
+### 3. Generate Python Source Code from a Model
 
 ```python
-from pydantic import create_model
-import articuno
+from articuno.codegen import generate_pydantic_class_code
 
-# Create a dynamic model
-DynamicUser = create_model('DynamicUser', name=(str, ...), age=(int, 0))
-
-# Generate the class code
-code = articuno.generate_pydantic_class_code(DynamicUser)
-
+code = generate_pydantic_class_code(model, model_name="UserModel")
 print(code)
 ```
 
-### Output
+### Output:
 
 ```python
-from __future__ import annotations
 from pydantic import BaseModel
 
-class DynamicUser(BaseModel):
+class UserModel(BaseModel):
     name: str
-    age: int = 0
+    age: int
+    is_active: bool
 ```
 
-### Saving to a File
-To write the generated code to a Python file:
+Or write it to a file:
 ```python
-articuno.generate_pydantic_class_code(DynamicUser, output_path="user_model.py")
+generate_pydantic_class_code(model, output_path="user_model.py")
 ```
 
-### Custom Class Name
-To override the class name in the output (useful for renaming dynamic models):
+## 🧬 Example: Nested Structs
+
 ```python
-articuno.generate_pydantic_class_code(DynamicUser, model_name="User")
+nested_df = pl.DataFrame({
+    "user": pl.Series([
+        {"name": "Alice", "age": 30},
+        {"name": "Bob", "age": 25},
+    ], dtype=pl.Struct([
+        ("name", pl.Utf8),
+        ("age", pl.Int64),
+    ]))
+})
+
+models = df_to_pydantic(nested_df)
+print(models[0].user.name)  # "Alice"
 ```
 
+### Output:
 
+```python
+AutoModel_0_Struct(name='Alice', age=30)
+Alice
+```
+
+## ⚙️ Supported Type Mappings
+| Polars Type           | Pydantic Type         |
+| --------------------- | --------------------- |
+| `pl.Int*`, `pl.UInt*` | `int`                 |
+| `pl.Float*`           | `float`               |
+| `pl.Utf8`             | `str`                 |
+| `pl.Boolean`          | `bool`                |
+| `pl.Date`             | `datetime.date`       |
+| `pl.Datetime`         | `datetime.datetime`   |
+| `pl.Duration`         | `datetime.timedelta`  |
+| `pl.List`             | `List[...]`           |
+| `pl.Struct`           | Nested Pydantic model |
+| `pl.Null`             | `Optional[...]`       |
+
+## 🧩 Integration Ideas
+🔐 Use for FastAPI or Litestar API schemas
+
+🧼 Use in ETL pipelines to enforce schema contracts
+
+📄 Use to generate typed Python models from data exports
+
+🔁 Use with polars.read_json / read_parquet to auto-model nested data
+
+## 🧪 Development & Testing
+
+```bash
+git clone https://github.com/your-username/articuno
+cd articuno
+pip install -e ".[dev]"
+pytest
+```
+
+## 🧊 Why the name "Articuno"?
+Polars is named after polar bears — animals adapted to cold environments. Articuno, a legendary ice-type bird Pokémon, fits the same cold-weather theme while symbolizing elegance, power, and structure. It’s the perfect metaphor for bringing clarity and form to complex data.
+
+
+## 📜 License
+MIT © 2025 Odos Matthews
