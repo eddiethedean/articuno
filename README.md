@@ -180,12 +180,9 @@ Articuno makes it easy to generate response_models for your FastAPI endpoints th
 
 ### 🧩 Step 1: Add the Decorator
 Use the @infer_response_model decorator on your FastAPI endpoint. Provide:
-
-a name for the generated Pydantic model,
-
-an example input dict to simulate a call to your endpoint,
-
-an optional path to your models.py file (defaults to models.py next to the FastAPI app file).
+- a name for the generated Pydantic model,
+- an example input dict to simulate a call to your endpoint,
+- an optional path to your models.py file (defaults to models.py next to the FastAPI app file).
 
 ```python
 from fastapi import FastAPI
@@ -213,17 +210,14 @@ def get_users(limit: int):
 After writing or modifying your endpoints, run the Articuno CLI:
 
 ```bash
-python cli.py bootstrap app/main.py
+articuno bootstrap app/main.py
 ```
 
 This will:
 
 1. Import and call all decorated endpoints with the given example_input
-
 2. Infer a Pydantic model from the returned polars.DataFrame
-
 3. Write the model to the specified models.py file
-
 4. Update your FastAPI app:
     - Add response_model=YourModel to the route decorator
     - Import the model at the top
