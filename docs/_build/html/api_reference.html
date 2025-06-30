@@ -244,8 +244,54 @@
         <article role="main" id="furo-main-content">
           <section id="api-reference">
 <h1>API Reference<a class="headerlink" href="#api-reference" title="Link to this heading">¶</a></h1>
-<p>This section documents the main modules and classes of Articuno.</p>
-<dl class="py function" id="module-articuno.convert">
+<p>This section documents the main modules and functions of Articuno.</p>
+<section id="module-articuno.bootstrap">
+<span id="bootstrap-module"></span><h2>Bootstrap Module<a class="headerlink" href="#module-articuno.bootstrap" title="Link to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="articuno.bootstrap.get_inference_registry">
+<span class="sig-prename descclassname"><span class="pre">articuno.bootstrap.</span></span><span class="sig-name descname"><span class="pre">get_inference_registry</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/articuno/bootstrap.html#get_inference_registry"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#articuno.bootstrap.get_inference_registry" title="Link to this definition">¶</a></dt>
+<dd><p>Retrieve the current registry of functions marked for response model inference.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A list of metadata dictionaries for registered endpoint functions,
+including function object, name, example input, models path,
+source file, and source line.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>List[Dict[str, Any]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="articuno.bootstrap.infer_response_model">
+<span class="sig-prename descclassname"><span class="pre">articuno.bootstrap.</span></span><span class="sig-name descname"><span class="pre">infer_response_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">example_input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">models_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'models.py'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/articuno/bootstrap.html#infer_response_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#articuno.bootstrap.infer_response_model" title="Link to this definition">¶</a></dt>
+<dd><p>Mark a FastAPI endpoint for automatic response model generation using Articuno.</p>
+<p>This decorator registers the endpoint function along with a model name and example input
+so that the Articuno CLI or tooling can later call the function, inspect the Polars
+DataFrame it returns, and generate a matching Pydantic model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<em>str</em>) – The name of the Pydantic model to generate.</p></li>
+<li><p><strong>example_input</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em>) – A dictionary of example input values to call the endpoint with.</p></li>
+<li><p><strong>models_path</strong> (<em>str</em><em>, </em><em>optional</em>) – Path to the file where the generated model should be written.
+If relative (default: “models.py”), it’s resolved relative to the source file.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The original endpoint function, unchanged.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Callable</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-articuno.convert">
+<span id="convert-module"></span><h2>Convert Module<a class="headerlink" href="#module-articuno.convert" title="Link to this heading">¶</a></h2>
+<dl class="py function">
 <dt class="sig sig-object py" id="articuno.convert.df_to_pydantic">
 <span class="sig-prename descclassname"><span class="pre">articuno.convert.</span></span><span class="sig-name descname"><span class="pre">df_to_pydantic</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/articuno/convert.html#df_to_pydantic"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#articuno.convert.df_to_pydantic" title="Link to this definition">¶</a></dt>
 <dd><p>Convert a Polars DataFrame to a list of Pydantic model instances.</p>
@@ -288,7 +334,10 @@ If None, a model will be inferred from the DataFrame.</p></li>
 </dl>
 </dd></dl>
 
-<dl class="py function" id="module-articuno.codegen">
+</section>
+<section id="module-articuno.codegen">
+<span id="codegen-module"></span><h2>Codegen Module<a class="headerlink" href="#module-articuno.codegen" title="Link to this heading">¶</a></h2>
+<dl class="py function">
 <dt class="sig sig-object py" id="articuno.codegen.df_to_pydantic">
 <span class="sig-prename descclassname"><span class="pre">articuno.codegen.</span></span><span class="sig-name descname"><span class="pre">df_to_pydantic</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/articuno/codegen.html#df_to_pydantic"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#articuno.codegen.df_to_pydantic" title="Link to this definition">¶</a></dt>
 <dd><p>Convert a Polars DataFrame to a list of Pydantic model instances.</p>
@@ -355,48 +404,10 @@ equivalent Python class definition as a string.</p>
 </dl>
 </dd></dl>
 
-<dl class="py function" id="module-articuno.bootstrap">
-<dt class="sig sig-object py" id="articuno.bootstrap.get_inference_registry">
-<span class="sig-prename descclassname"><span class="pre">articuno.bootstrap.</span></span><span class="sig-name descname"><span class="pre">get_inference_registry</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/articuno/bootstrap.html#get_inference_registry"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#articuno.bootstrap.get_inference_registry" title="Link to this definition">¶</a></dt>
-<dd><p>Retrieve the current registry of functions marked for response model inference.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>A list of metadata dictionaries for registered endpoint functions,
-including function object, name, example input, models path,
-source file, and source line.</p>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>List[Dict[str, Any]]</p>
-</dd>
-</dl>
-</dd></dl>
-
+</section>
+<section id="module-articuno.cli">
+<span id="cli-module"></span><h2>CLI Module<a class="headerlink" href="#module-articuno.cli" title="Link to this heading">¶</a></h2>
 <dl class="py function">
-<dt class="sig sig-object py" id="articuno.bootstrap.infer_response_model">
-<span class="sig-prename descclassname"><span class="pre">articuno.bootstrap.</span></span><span class="sig-name descname"><span class="pre">infer_response_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">example_input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">models_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'models.py'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/articuno/bootstrap.html#infer_response_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#articuno.bootstrap.infer_response_model" title="Link to this definition">¶</a></dt>
-<dd><p>Mark a FastAPI endpoint for automatic response model generation using Articuno.</p>
-<p>This decorator registers the endpoint function along with a model name and example input
-so that the Articuno CLI or tooling can later call the function, inspect the Polars
-DataFrame it returns, and generate a matching Pydantic model.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>name</strong> (<em>str</em>) – The name of the Pydantic model to generate.</p></li>
-<li><p><strong>example_input</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em>) – A dictionary of example input values to call the endpoint with.</p></li>
-<li><p><strong>models_path</strong> (<em>str</em><em>, </em><em>optional</em>) – Path to the file where the generated model should be written.
-If relative (default: “models.py”), it’s resolved relative to the source file.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>The original endpoint function, unchanged.</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Callable</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function" id="module-articuno.cli">
 <dt class="sig sig-object py" id="articuno.cli.backup_file">
 <span class="sig-prename descclassname"><span class="pre">articuno.cli.</span></span><span class="sig-name descname"><span class="pre">backup_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/articuno/cli.html#backup_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#articuno.cli.backup_file" title="Link to this definition">¶</a></dt>
 <dd><p>Create a timestamped backup of a file if it exists.</p>
@@ -492,6 +503,7 @@ and modifying the route decorator to include the response model.</p>
 </dd></dl>
 
 </section>
+</section>
 
         </article>
       </div>
@@ -549,18 +561,30 @@ and modifying the route decorator to include the response model.</p>
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">API Reference</a><ul>
+<li><a class="reference internal" href="#module-articuno.bootstrap">Bootstrap Module</a><ul>
+<li><a class="reference internal" href="#articuno.bootstrap.get_inference_registry"><code class="docutils literal notranslate"><span class="pre">get_inference_registry()</span></code></a></li>
+<li><a class="reference internal" href="#articuno.bootstrap.infer_response_model"><code class="docutils literal notranslate"><span class="pre">infer_response_model()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-articuno.convert">Convert Module</a><ul>
 <li><a class="reference internal" href="#articuno.convert.df_to_pydantic"><code class="docutils literal notranslate"><span class="pre">df_to_pydantic()</span></code></a></li>
 <li><a class="reference internal" href="#articuno.convert.infer_pydantic_model"><code class="docutils literal notranslate"><span class="pre">infer_pydantic_model()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-articuno.codegen">Codegen Module</a><ul>
 <li><a class="reference internal" href="#articuno.codegen.df_to_pydantic"><code class="docutils literal notranslate"><span class="pre">df_to_pydantic()</span></code></a></li>
 <li><a class="reference internal" href="#articuno.codegen.generate_pydantic_class_code"><code class="docutils literal notranslate"><span class="pre">generate_pydantic_class_code()</span></code></a></li>
 <li><a class="reference internal" href="#articuno.codegen.infer_pydantic_model"><code class="docutils literal notranslate"><span class="pre">infer_pydantic_model()</span></code></a></li>
-<li><a class="reference internal" href="#articuno.bootstrap.get_inference_registry"><code class="docutils literal notranslate"><span class="pre">get_inference_registry()</span></code></a></li>
-<li><a class="reference internal" href="#articuno.bootstrap.infer_response_model"><code class="docutils literal notranslate"><span class="pre">infer_response_model()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-articuno.cli">CLI Module</a><ul>
 <li><a class="reference internal" href="#articuno.cli.backup_file"><code class="docutils literal notranslate"><span class="pre">backup_file()</span></code></a></li>
 <li><a class="reference internal" href="#articuno.cli.bootstrap"><code class="docutils literal notranslate"><span class="pre">bootstrap()</span></code></a></li>
 <li><a class="reference internal" href="#articuno.cli.find_and_modify_decorator_line"><code class="docutils literal notranslate"><span class="pre">find_and_modify_decorator_line()</span></code></a></li>
 <li><a class="reference internal" href="#articuno.cli.insert_model_import"><code class="docutils literal notranslate"><span class="pre">insert_model_import()</span></code></a></li>
 <li><a class="reference internal" href="#articuno.cli.update_source_file"><code class="docutils literal notranslate"><span class="pre">update_source_file()</span></code></a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
