@@ -4,6 +4,7 @@ import polars as pl
 
 _model_cache: Dict[str, Type[BaseModel]] = {}
 
+
 def infer_pydantic_model(
     df: pl.DataFrame,
     model_name: str = "AutoModel",
@@ -12,13 +13,19 @@ def infer_pydantic_model(
     """
     Infer a Pydantic model class from a Polars DataFrame schema.
 
-    Args:
-        df: The Polars DataFrame to infer from.
-        model_name: Name of the root Pydantic model class.
-        _model_cache: Internal cache to reuse nested model classes.
+    Parameters
+    ----------
+    df : pl.DataFrame
+        The Polars DataFrame to infer from.
+    model_name : str, optional
+        Name of the root Pydantic model class.
+    _model_cache : dict[str, Type[BaseModel]], optional
+        Internal cache to reuse nested model classes (e.g., for struct fields).
 
-    Returns:
-        A Pydantic model class representing the schema.
+    Returns
+    -------
+    Type[BaseModel]
+        A Pydantic model class representing the inferred schema.
     """
     if _model_cache is None:
         _model_cache = {}
@@ -84,15 +91,21 @@ def df_to_pydantic(
 ) -> List[BaseModel]:
     """
     Convert a Polars DataFrame to a list of Pydantic model instances.
-    If no model is provided, infer one from the DataFrame schema.
 
-    Args:
-        df: The Polars DataFrame to convert.
-        model: Optional Pydantic model class to instantiate.
-        model_name: Optional model name if inferring.
+    Parameters
+    ----------
+    df : pl.DataFrame
+        The Polars DataFrame to convert.
+    model : Type[BaseModel], optional
+        An existing Pydantic model class to use for conversion.
+        If None, a model will be inferred from the DataFrame.
+    model_name : str, optional
+        The name to use if inferring the model.
 
-    Returns:
-        List of Pydantic model instances corresponding to DataFrame rows.
+    Returns
+    -------
+    List[BaseModel]
+        A list of Pydantic model instances corresponding to DataFrame rows.
     """
     if model is None:
         model = infer_pydantic_model(df, model_name=model_name or "AutoModel")
