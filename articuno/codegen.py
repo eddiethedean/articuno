@@ -23,17 +23,14 @@ def generate_pydantic_class_code(
     Returns:
         The generated Python source code as a string.
     """
-    # Extract model schema depending on Pydantic version
     if hasattr(model, "model_json_schema"):
         schema = model.model_json_schema()
     else:
         schema = model.schema()
 
-    # Optionally rename the model in the schema title
     if model_name:
         schema["title"] = model_name
 
-    # Dump the schema to a string
     schema_str = json.dumps(schema, indent=2)
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -43,9 +40,9 @@ def generate_pydantic_class_code(
         input_file.write_text(schema_str, encoding="utf-8")
 
         generate(
-            input_filename=str(input_file),
+            input_file,
             input_file_type=InputFileType.JsonSchema,
-            output=str(output_file),
+            output=output_file,  # Pass Path object here, not str
         )
 
         code = output_file.read_text(encoding="utf-8")
