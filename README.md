@@ -8,7 +8,7 @@
 
 - Convert Polars DataFrames to Pydantic model instances.
 - Automatically infer Pydantic models from Polars schemas, including nested structs and lists.
-- Generate Python source code for Pydantic models using [datamodel-code-generator](https://pypi.org/project/datamodel-code-generator/).
+- Generate Python source code for Pydantic models using `datamodel-code-generator`.
 - Decorator and CLI support for automated FastAPI response model generation.
 - Designed to streamline your data transformation → validation → API workflow.
 
