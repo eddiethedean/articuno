@@ -7,7 +7,7 @@ author = "Odos Matthews"
 release = "0.3.7"
 
 extensions = [
-'sphinx.ext.autodoc',
+    'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
     'sphinx_autodoc_typehints',
     'sphinx.ext.autosummary',

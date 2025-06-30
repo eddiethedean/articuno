@@ -1,13 +1,14 @@
 <!doctype html>
-<html class="no-js" lang="en" data-content_root="./">
+<html class="no-js" lang="en" data-content_root="../../">
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
-    <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="#" /><link rel="search" title="Search" href="search.html" />
+    <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" />
 
-    <!-- Generated with Sphinx 7.4.7 and Furo 2024.08.06 --><title>Index - articuno 0.3.7 documentation</title>
-<link rel="stylesheet" type="text/css" href="_static/pygments.css?v=8f2a1f02" />
-    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=354aac6f" />
-    <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=302659d7" />
+    <!-- Generated with Sphinx 7.4.7 and Furo 2024.08.06 -->
+        <title>articuno.bootstrap - articuno 0.3.7 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=354aac6f" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=302659d7" />
     
     
 
@@ -164,7 +165,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="index.html"><div class="brand">articuno 0.3.7 documentation</div></a>
+      <a href="../../index.html"><div class="brand">articuno 0.3.7 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -185,12 +186,12 @@
   <aside class="sidebar-drawer">
     <div class="sidebar-container">
       
-      <div class="sidebar-sticky"><a class="sidebar-brand" href="index.html">
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
   
   
   <span class="sidebar-brand-text">articuno 0.3.7 documentation</span>
   
-</a><form class="sidebar-search-container" method="get" action="search.html" role="search">
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
   <input type="hidden" name="check_keywords" value="yes">
   <input type="hidden" name="area" value="default">
@@ -198,8 +199,8 @@
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
-<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage.html">Usage Guide</a></li>
 </ul>
 
 </div>
@@ -234,153 +235,76 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          
-<section class="genindex-section">
-  <h1 id="index">Index</h1>
-  <div class="genindex-jumpbox"><a href="#A"><strong>A</strong></a> | <a href="#B"><strong>B</strong></a> | <a href="#D"><strong>D</strong></a> | <a href="#F"><strong>F</strong></a> | <a href="#G"><strong>G</strong></a> | <a href="#I"><strong>I</strong></a> | <a href="#M"><strong>M</strong></a> | <a href="#U"><strong>U</strong></a></div>
-</section>
-<section id="A" class="genindex-section">
-  <h2>A</h2>
-  <table style="width: 100%" class="indextable genindextable"><tr>
-    <td style="width: 33%; vertical-align: top;"><ul>
-        <li>
-    articuno.bootstrap
+          <h1>Source code for articuno.bootstrap</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">inspect</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span>
 
-        <ul>
-          <li><a href="api_reference.html#module-articuno.bootstrap">module</a>
-</li>
-        </ul></li>
-        <li>
-    articuno.cli
+<span class="n">_inference_registry</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
 
-        <ul>
-          <li><a href="api_reference.html#module-articuno.cli">module</a>
-</li>
-        </ul></li>
-    </ul></td>
-    <td style="width: 33%; vertical-align: top;"><ul>
-        <li>
-    articuno.codegen
+<div class="viewcode-block" id="get_inference_registry">
+<a class="viewcode-back" href="../../api_reference.html#articuno.bootstrap.get_inference_registry">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_inference_registry</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Retrieve the current registry of functions marked for response model inference.</span>
 
-        <ul>
-          <li><a href="api_reference.html#module-articuno.codegen">module</a>
-</li>
-        </ul></li>
-        <li>
-    articuno.convert
-
-        <ul>
-          <li><a href="api_reference.html#module-articuno.convert">module</a>
-</li>
-        </ul></li>
-    </ul></td>
-  </tr></table>
-</section>
-
-<section id="B" class="genindex-section">
-  <h2>B</h2>
-  <table style="width: 100%" class="indextable genindextable"><tr>
-    <td style="width: 33%; vertical-align: top;"><ul>
-        <li><a href="api_reference.html#articuno.cli.backup_file">backup_file() (in module articuno.cli)</a>
-</li>
-    </ul></td>
-    <td style="width: 33%; vertical-align: top;"><ul>
-        <li><a href="api_reference.html#articuno.cli.bootstrap">bootstrap() (in module articuno.cli)</a>
-</li>
-    </ul></td>
-  </tr></table>
-</section>
-
-<section id="D" class="genindex-section">
-  <h2>D</h2>
-  <table style="width: 100%" class="indextable genindextable"><tr>
-    <td style="width: 33%; vertical-align: top;"><ul>
-        <li><a href="api_reference.html#articuno.codegen.df_to_pydantic">df_to_pydantic() (in module articuno.codegen)</a>
-
-        <ul>
-          <li><a href="api_reference.html#articuno.convert.df_to_pydantic">(in module articuno.convert)</a>
-</li>
-        </ul></li>
-    </ul></td>
-  </tr></table>
-</section>
-
-<section id="F" class="genindex-section">
-  <h2>F</h2>
-  <table style="width: 100%" class="indextable genindextable"><tr>
-    <td style="width: 33%; vertical-align: top;"><ul>
-        <li><a href="api_reference.html#articuno.cli.find_and_modify_decorator_line">find_and_modify_decorator_line() (in module articuno.cli)</a>
-</li>
-    </ul></td>
-  </tr></table>
-</section>
-
-<section id="G" class="genindex-section">
-  <h2>G</h2>
-  <table style="width: 100%" class="indextable genindextable"><tr>
-    <td style="width: 33%; vertical-align: top;"><ul>
-        <li><a href="api_reference.html#articuno.codegen.generate_pydantic_class_code">generate_pydantic_class_code() (in module articuno.codegen)</a>
-</li>
-    </ul></td>
-    <td style="width: 33%; vertical-align: top;"><ul>
-        <li><a href="api_reference.html#articuno.bootstrap.get_inference_registry">get_inference_registry() (in module articuno.bootstrap)</a>
-</li>
-    </ul></td>
-  </tr></table>
-</section>
-
-<section id="I" class="genindex-section">
-  <h2>I</h2>
-  <table style="width: 100%" class="indextable genindextable"><tr>
-    <td style="width: 33%; vertical-align: top;"><ul>
-        <li><a href="api_reference.html#articuno.codegen.infer_pydantic_model">infer_pydantic_model() (in module articuno.codegen)</a>
-
-        <ul>
-          <li><a href="api_reference.html#articuno.convert.infer_pydantic_model">(in module articuno.convert)</a>
-</li>
-        </ul></li>
-    </ul></td>
-    <td style="width: 33%; vertical-align: top;"><ul>
-        <li><a href="api_reference.html#articuno.bootstrap.infer_response_model">infer_response_model() (in module articuno.bootstrap)</a>
-</li>
-        <li><a href="api_reference.html#articuno.cli.insert_model_import">insert_model_import() (in module articuno.cli)</a>
-</li>
-    </ul></td>
-  </tr></table>
-</section>
-
-<section id="M" class="genindex-section">
-  <h2>M</h2>
-  <table style="width: 100%" class="indextable genindextable"><tr>
-    <td style="width: 33%; vertical-align: top;"><ul>
-        <li>
-    module
-
-        <ul>
-          <li><a href="api_reference.html#module-articuno.bootstrap">articuno.bootstrap</a>
-</li>
-          <li><a href="api_reference.html#module-articuno.cli">articuno.cli</a>
-</li>
-          <li><a href="api_reference.html#module-articuno.codegen">articuno.codegen</a>
-</li>
-          <li><a href="api_reference.html#module-articuno.convert">articuno.convert</a>
-</li>
-        </ul></li>
-    </ul></td>
-  </tr></table>
-</section>
-
-<section id="U" class="genindex-section">
-  <h2>U</h2>
-  <table style="width: 100%" class="indextable genindextable"><tr>
-    <td style="width: 33%; vertical-align: top;"><ul>
-        <li><a href="api_reference.html#articuno.cli.update_source_file">update_source_file() (in module articuno.cli)</a>
-</li>
-    </ul></td>
-  </tr></table>
-</section>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    List[Dict[str, Any]]</span>
+<span class="sd">        A list of metadata dictionaries for registered endpoint functions,</span>
+<span class="sd">        including function object, name, example input, models path,</span>
+<span class="sd">        source file, and source line.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_inference_registry</span></div>
 
 
+<div class="viewcode-block" id="infer_response_model">
+<a class="viewcode-back" href="../../api_reference.html#articuno.bootstrap.infer_response_model">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">infer_response_model</span><span class="p">(</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">example_input</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+    <span class="n">models_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;models.py&quot;</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Mark a FastAPI endpoint for automatic response model generation using Articuno.</span>
+
+<span class="sd">    This decorator registers the endpoint function along with a model name and example input</span>
+<span class="sd">    so that the Articuno CLI or tooling can later call the function, inspect the Polars</span>
+<span class="sd">    DataFrame it returns, and generate a matching Pydantic model.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    name : str</span>
+<span class="sd">        The name of the Pydantic model to generate.</span>
+<span class="sd">    example_input : dict[str, Any]</span>
+<span class="sd">        A dictionary of example input values to call the endpoint with.</span>
+<span class="sd">    models_path : str, optional</span>
+<span class="sd">        Path to the file where the generated model should be written.</span>
+<span class="sd">        If relative (default: &quot;models.py&quot;), it&#39;s resolved relative to the source file.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    Callable</span>
+<span class="sd">        The original endpoint function, unchanged.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">decorator</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+        <span class="n">frame</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">currentframe</span><span class="p">()</span><span class="o">.</span><span class="n">f_back</span>
+        <span class="n">filename</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">getfile</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span>
+        <span class="n">lineno</span> <span class="o">=</span> <span class="n">frame</span><span class="o">.</span><span class="n">f_lineno</span>
+
+        <span class="n">_inference_registry</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+            <span class="s2">&quot;func&quot;</span><span class="p">:</span> <span class="n">func</span><span class="p">,</span>
+            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span>
+            <span class="s2">&quot;example_input&quot;</span><span class="p">:</span> <span class="n">example_input</span><span class="p">,</span>
+            <span class="s2">&quot;models_path&quot;</span><span class="p">:</span> <span class="n">models_path</span><span class="p">,</span>
+            <span class="s2">&quot;source_file&quot;</span><span class="p">:</span> <span class="n">filename</span><span class="p">,</span>
+            <span class="s2">&quot;source_line&quot;</span><span class="p">:</span> <span class="n">lineno</span><span class="p">,</span>
+        <span class="p">})</span>
+
+        <span class="k">return</span> <span class="n">func</span>
+
+    <span class="k">return</span> <span class="n">decorator</span></div>
+
+</pre></div>
         </article>
       </div>
       <footer>
@@ -412,9 +336,9 @@
       
     </aside>
   </div>
-</div><script src="_static/documentation_options.js?v=29d04658"></script>
-    <script src="_static/doctools.js?v=9a2dae69"></script>
-    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
-    <script src="_static/scripts/furo.js?v=5fa4622c"></script>
+</div><script src="../../_static/documentation_options.js?v=29d04658"></script>
+    <script src="../../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/scripts/furo.js?v=5fa4622c"></script>
     </body>
 </html>

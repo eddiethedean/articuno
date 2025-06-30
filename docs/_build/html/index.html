@@ -3,7 +3,7 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="Usage Guide" href="usage.html" />
+<link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="API Reference" href="api_reference.html" />
 
     <!-- Generated with Sphinx 7.4.7 and Furo 2024.08.06 -->
         <title>articuno 0.3.7 documentation</title>
@@ -200,8 +200,8 @@
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
 <li class="toctree-l1"><a class="reference internal" href="usage.html">Usage Guide</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api.html">API Reference</a></li>
 </ul>
 
 </div>
@@ -243,12 +243,33 @@
         </div>
         <article role="main" id="furo-main-content">
           <section id="welcome-to-articuno-s-documentation">
-<h1>Welcome to Articuno’s Documentation!<a class="headerlink" href="#welcome-to-articuno-s-documentation" title="Link to this heading">¶</a></h1>
+<h1>Welcome to Articuno’s Documentation<a class="headerlink" href="#welcome-to-articuno-s-documentation" title="Link to this heading">¶</a></h1>
+<p>Articuno helps convert Polars DataFrames to Pydantic models and auto-generate code.</p>
 <div class="toctree-wrapper compound">
 <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage Guide</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#articuno.convert.df_to_pydantic"><code class="docutils literal notranslate"><span class="pre">df_to_pydantic()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#articuno.convert.infer_pydantic_model"><code class="docutils literal notranslate"><span class="pre">infer_pydantic_model()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#articuno.codegen.df_to_pydantic"><code class="docutils literal notranslate"><span class="pre">df_to_pydantic()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#articuno.codegen.generate_pydantic_class_code"><code class="docutils literal notranslate"><span class="pre">generate_pydantic_class_code()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#articuno.codegen.infer_pydantic_model"><code class="docutils literal notranslate"><span class="pre">infer_pydantic_model()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#articuno.bootstrap.get_inference_registry"><code class="docutils literal notranslate"><span class="pre">get_inference_registry()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#articuno.bootstrap.infer_response_model"><code class="docutils literal notranslate"><span class="pre">infer_response_model()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#articuno.cli.backup_file"><code class="docutils literal notranslate"><span class="pre">backup_file()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#articuno.cli.bootstrap"><code class="docutils literal notranslate"><span class="pre">bootstrap()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#articuno.cli.find_and_modify_decorator_line"><code class="docutils literal notranslate"><span class="pre">find_and_modify_decorator_line()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#articuno.cli.insert_model_import"><code class="docutils literal notranslate"><span class="pre">insert_model_import()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#articuno.cli.update_source_file"><code class="docutils literal notranslate"><span class="pre">update_source_file()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="usage.html#inferring-a-pydantic-model-from-a-polars-dataframe">Inferring a Pydantic model from a Polars DataFrame</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage.html#generating-python-class-code-from-a-pydantic-model">Generating Python class code from a Pydantic model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage.html#bootstrapping-fastapi-response-models">Bootstrapping FastAPI response models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage.html#cli-usage">CLI Usage</a></li>
+</ul>
+</li>
 </ul>
 </div>
 </section>
@@ -257,6 +278,7 @@
 <ul class="simple">
 <li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
 <li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
 </ul>
 </section>
 
@@ -265,12 +287,12 @@
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="usage.html">
+          <a class="next-page" href="api_reference.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Usage Guide</div>
+                <div class="title">API Reference</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
