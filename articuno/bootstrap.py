@@ -1,11 +1,11 @@
-from typing import Any, Callable, Dict
 import inspect
+from typing import Any, Callable, Dict, List
 
 
-_inference_registry = []
+_inference_registry: List[Dict[str, Any]] = []
 
 
-def get_inference_registry():
+def get_inference_registry() -> List[Dict[str, Any]]:
     return _inference_registry
 
 

@@ -4,6 +4,7 @@ from typing import (
     List,
     Optional,
     Type,
+    Union,
 )
 from datetime import datetime, date, time, timedelta
 from decimal import Decimal

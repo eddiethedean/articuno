@@ -11,4 +11,4 @@ __all__ = [
     "cli_app",
     "get_inference_registry"
 ]
-__version__ = "0.3.1"
+__version__ = "0.3.3"
