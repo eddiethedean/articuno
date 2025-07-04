@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "articuno"
-version = "0.3.11"
+version = "0.4.0"
 description = "Convert Polars DataFrames to lists of Pydantic models with schema inference"
 authors = [{ name="Odos Matthews", email="odosmatthews@gmail.com" }]
 readme = "README.md"
@@ -22,7 +22,14 @@ dev = [
     "build",
     "twine"
 ]
-docs = ["sphinx", "sphinx-autodoc-typehints", "furo"]
+docs = [
+    "sphinx",
+    "sphinx-autodoc-typehints",
+    "furo"
+]
+patito = [
+    "patito"
+]
 
 [project.urls]
 Homepage = "https://github.com/eddiethedean/articuno"
