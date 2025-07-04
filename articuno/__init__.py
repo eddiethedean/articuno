@@ -4,7 +4,7 @@ sys.path.insert(0, os.path.abspath(".."))  # ensures your package is importable
 
 project = "articuno"
 author = "Odos Matthews"
-release = "0.3.7"
+release = "0.3.8"
 
 extensions = [
     "sphinx.ext.autodoc",

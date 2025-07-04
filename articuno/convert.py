@@ -1,9 +1,9 @@
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Type, Union, get_args
 from pydantic import BaseModel, create_model
 import polars as pl
+import datetime
 
 _model_cache: Dict[str, Type[BaseModel]] = {}
-
 
 def infer_pydantic_model(
     df: pl.DataFrame,
@@ -31,7 +31,6 @@ def infer_pydantic_model(
         _model_cache = {}
 
     def resolve_dtype(dtype: pl.DataType) -> Any:
-        # Map Polars primitive types to Python types
         if dtype in {pl.Int8, pl.Int16, pl.Int32, pl.Int64,
                      pl.UInt8, pl.UInt16, pl.UInt32, pl.UInt64}:
             return int
@@ -42,13 +41,10 @@ def infer_pydantic_model(
         if dtype == pl.Utf8:
             return str
         if dtype == pl.Date:
-            import datetime
             return datetime.date
         if dtype == pl.Datetime:
-            import datetime
             return datetime.datetime
         if dtype == pl.Duration:
-            import datetime
             return datetime.timedelta
         if dtype == pl.Null:
             return type(None)
@@ -56,7 +52,6 @@ def infer_pydantic_model(
         # Handle List types
         if dtype.__class__.__name__ == "List":
             inner_type = resolve_dtype(dtype.inner)
-            from typing import List
             return List[inner_type]
 
         # Handle Struct types
@@ -73,11 +68,15 @@ def infer_pydantic_model(
                 _model_cache[struct_key] = model_cls
                 return model_cls
 
-        # Fallback to Any for unknown types
         return Any
 
+    def wrap_nullable(dtype: pl.DataType, typ: Any) -> Any:
+        if dtype.__class__.__name__ in ("Struct", "List"):
+            return typ  # These are always wrapped directly
+        return Optional[typ] if df.select(pl.col(name).is_null().any()).item() else typ
+
     fields: Dict[str, tuple] = {
-        name: (resolve_dtype(dtype), ...)
+        name: (wrap_nullable(dtype, resolve_dtype(dtype)), ...)
         for name, dtype in df.schema.items()
     }
 
