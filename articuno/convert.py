@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Type, Union, get_args
+from typing import Any, Dict, List, Optional, Type, Union
 from pydantic import BaseModel, create_model
 import polars as pl
 import datetime
@@ -49,12 +49,10 @@ def infer_pydantic_model(
         if dtype == pl.Null:
             return type(None)
 
-        # Handle List types
         if dtype.__class__.__name__ == "List":
             inner_type = resolve_dtype(dtype.inner)
             return List[inner_type]
 
-        # Handle Struct types
         if dtype.__class__.__name__ == "Struct":
             struct_key = str(dtype)
             if struct_key in _model_cache:
@@ -70,42 +68,15 @@ def infer_pydantic_model(
 
         return Any
 
-    def wrap_nullable(dtype: pl.DataType, typ: Any) -> Any:
+    def wrap_nullable(name: str, dtype: pl.DataType, typ: Any) -> Any:
         if dtype.__class__.__name__ in ("Struct", "List"):
-            return typ  # These are always wrapped directly
-        return Optional[typ] if df.select(pl.col(name).is_null().any()).item() else typ
+            return typ
+        is_nullable = df.select(pl.col(name).is_null().any()).item()
+        return Optional[typ] if is_nullable else typ
 
     fields: Dict[str, tuple] = {
-        name: (wrap_nullable(dtype, resolve_dtype(dtype)), ...)
+        name: (wrap_nullable(name, dtype, resolve_dtype(dtype)), ...)
         for name, dtype in df.schema.items()
     }
 
     return create_model(model_name, **fields)
-
-
-def df_to_pydantic(
-    df: pl.DataFrame,
-    model: Optional[Type[BaseModel]] = None,
-    model_name: Optional[str] = None,
-) -> List[BaseModel]:
-    """
-    Convert a Polars DataFrame to a list of Pydantic model instances.
-
-    Parameters
-    ----------
-    df : pl.DataFrame
-        The Polars DataFrame to convert.
-    model : Type[BaseModel], optional
-        An existing Pydantic model class to use for conversion.
-        If None, a model will be inferred from the DataFrame.
-    model_name : str, optional
-        The name to use if inferring the model.
-
-    Returns
-    -------
-    List[BaseModel]
-        A list of Pydantic model instances corresponding to DataFrame rows.
-    """
-    if model is None:
-        model = infer_pydantic_model(df, model_name=model_name or "AutoModel")
-    return [model(**row) for row in df.to_dicts()]

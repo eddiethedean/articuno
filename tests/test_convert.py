@@ -1,6 +1,6 @@
 import polars as pl
 from pydantic import ValidationError
-from articuno import df_to_pydantic, infer_pydantic_model
+from docs import df_to_pydantic, infer_pydantic_model
 from datetime import datetime, date, time, timedelta
 from decimal import Decimal
 from typing import List
