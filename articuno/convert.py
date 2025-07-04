@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Type
 from pydantic import BaseModel, create_model
 import polars as pl
 import datetime
@@ -80,3 +80,30 @@ def infer_pydantic_model(
     }
 
     return create_model(model_name, **fields)
+
+def df_to_pydantic(
+    df: pl.DataFrame,
+    model: Optional[Type[BaseModel]] = None,
+    model_name: Optional[str] = None,
+) -> List[BaseModel]:
+    """
+    Convert a Polars DataFrame to a list of Pydantic model instances.
+
+    Parameters
+    ----------
+    df : pl.DataFrame
+        The Polars DataFrame to convert.
+    model : Type[BaseModel], optional
+        An existing Pydantic model class to use for conversion.
+        If None, a model will be inferred from the DataFrame.
+    model_name : str, optional
+        The name to use if inferring the model.
+
+    Returns
+    -------
+    List[BaseModel]
+        A list of Pydantic model instances corresponding to DataFrame rows.
+    """
+    if model is None:
+        model = infer_pydantic_model(df, model_name=model_name or "AutoModel")
+    return [model(**row) for row in df.to_dicts()]

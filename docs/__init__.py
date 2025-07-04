@@ -1,10 +1,12 @@
 import os
 import sys
+
+import articuno
 sys.path.insert(0, os.path.abspath(".."))  # ensures your package is importable
 
 project = "articuno"
 author = "Odos Matthews"
-release = "0.3.9"
+release = articuno.__version__
 
 extensions = [
     "sphinx.ext.autodoc",
