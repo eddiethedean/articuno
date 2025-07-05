@@ -18,14 +18,19 @@ def df_to_pydantic(
     """
     Convert a Polars DataFrame into a list of Pydantic model instances.
 
-    This function optionally infers a Pydantic model from the DataFrame's schema
-    and converts each row into a validated model instance.
+    Parameters
+    ----------
+    df : pl.DataFrame
+        The Polars DataFrame to convert.
+    model : Type[BaseModel], optional
+        A Pydantic model to use. If None, a model is inferred from the DataFrame.
+    model_name : str, optional
+        Name to use when inferring the model class.
 
-    :param df: The Polars DataFrame to convert.
-    :param model: A Pydantic model to use. If None, one is inferred.
-    :param model_name: Optional name to assign to the generated model class.
-    :return: A list of Pydantic model instances.
-    :rtype: List[BaseModel]
+    Returns
+    -------
+    List[BaseModel]
+        A list of Pydantic model instances.
     """
     if model is None:
         model = infer_pydantic_model(df, model_name=model_name or "AutoModel")
@@ -40,13 +45,19 @@ def infer_pydantic_model(
     """
     Infer a Pydantic model class from a Polars DataFrame schema.
 
-    Supports complex nested types, such as structs and lists, and detects nullable fields.
+    Parameters
+    ----------
+    df : pl.DataFrame
+        The DataFrame to infer the schema from.
+    model_name : str
+        The name of the generated Pydantic model class.
+    _model_cache : dict, optional
+        Internal cache used to prevent regenerating nested models.
 
-    :param df: The Polars DataFrame to infer the schema from.
-    :param model_name: The name to assign to the root model class.
-    :param _model_cache: Internal cache to reuse nested model classes for structs.
-    :return: A dynamically generated Pydantic model class.
-    :rtype: Type[BaseModel]
+    Returns
+    -------
+    Type[BaseModel]
+        The generated Pydantic model class.
     """
     if _model_cache is None:
         _model_cache = {}
@@ -134,15 +145,24 @@ def df_to_patito(
     """
     Convert a Polars DataFrame into a list of Patito model instances.
 
-    This function infers a Patito model if one isn't provided and uses it
-    to convert each DataFrame row into a validated instance.
+    Parameters
+    ----------
+    df : pl.DataFrame
+        The Polars DataFrame to convert.
+    model : Type[pt.Model], optional
+        A Patito model to use. If None, a model is inferred from the DataFrame.
+    model_name : str, optional
+        Name to use when inferring the model class.
 
-    :param df: The Polars DataFrame to convert.
-    :param model: A Patito model class to use. If None, one is inferred.
-    :param model_name: Optional name for the generated model class.
-    :return: A list of Patito model instances.
-    :rtype: List[pt.Model]
-    :raises ImportError: If Patito is not installed.
+    Returns
+    -------
+    List[pt.Model]
+        A list of Patito model instances.
+
+    Raises
+    ------
+    ImportError
+        If Patito is not installed.
     """
     if not _has_patito:
         raise ImportError("Patito is not installed. Try `pip install patito`.")
@@ -160,13 +180,22 @@ def infer_patito_model(
     """
     Infer a Patito model class from a Polars DataFrame schema.
 
-    Only top-level, flat schemas are supported. Nested structs are not currently supported.
+    Parameters
+    ----------
+    df : pl.DataFrame
+        The DataFrame to infer the schema from.
+    model_name : str
+        The name of the generated Patito model class.
 
-    :param df: The Polars DataFrame to infer the model from.
-    :param model_name: The name to assign to the Patito model.
-    :return: A dynamically generated Patito model class.
-    :rtype: Type[pt.Model]
-    :raises ImportError: If Patito is not installed.
+    Returns
+    -------
+    Type[pt.Model]
+        The generated Patito model class.
+
+    Raises
+    ------
+    ImportError
+        If Patito is not installed.
     """
     if not _has_patito:
         raise ImportError("Patito is not installed. Try `pip install patito`.")
