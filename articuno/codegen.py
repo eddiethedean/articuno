@@ -1,3 +1,10 @@
+"""
+Code generation utilities for converting Pydantic models into class definitions using datamodel-code-generator.
+
+This module enables you to extract the JSON schema from a Pydantic model
+and generate equivalent Python code using the powerful `datamodel-code-generator` package.
+"""
+
 import json
 import tempfile
 from pathlib import Path
@@ -9,7 +16,20 @@ from pydantic import BaseModel
 
 def _write_json_schema_to_tempfile(schema: dict) -> Tuple[Path, tempfile.TemporaryDirectory]:
     """
-    Write the JSON schema to a temporary file and return the file path and its temp directory.
+    Write a JSON schema to a temporary file.
+
+    This function serializes the provided JSON schema dictionary to a `.json` file
+    in a new temporary directory. The directory is returned to allow cleanup control.
+
+    Parameters
+    ----------
+    schema : dict
+        A JSON schema dictionary typically produced by `model.model_json_schema()` or `model.schema()`.
+
+    Returns
+    -------
+    Tuple[Path, tempfile.TemporaryDirectory]
+        A tuple containing the path to the written JSON schema file and the corresponding temporary directory.
     """
     temp_dir = tempfile.TemporaryDirectory()
     json_path = Path(temp_dir.name) / "schema.json"
@@ -19,7 +39,20 @@ def _write_json_schema_to_tempfile(schema: dict) -> Tuple[Path, tempfile.Tempora
 
 def _run_datamodel_codegen(input_path: Path) -> str:
     """
-    Run datamodel-code-generator on the input JSON schema file and return generated code as string.
+    Run `datamodel-code-generator` on a JSON schema file and return the generated code as a string.
+
+    This function creates a temporary output file, invokes the generator,
+    and reads the resulting Python code.
+
+    Parameters
+    ----------
+    input_path : Path
+        Path to a valid JSON schema file.
+
+    Returns
+    -------
+    str
+        The Python class definitions generated from the schema.
     """
     with tempfile.TemporaryDirectory() as temp_output_dir:
         temp_output_path = Path(temp_output_dir) / "model.py"
@@ -39,19 +72,25 @@ def generate_class_code(
     """
     Generate Python class code from a Pydantic model using datamodel-code-generator.
 
+    This function extracts the JSON schema from a Pydantic model and uses
+    `datamodel-code-generator` to convert it into Python class code.
+
+    If `output_path` is provided, the generated code is written to that file.
+    Otherwise, the code is returned as a string.
+
     Parameters
     ----------
     model : Type[BaseModel]
-        The Pydantic model to generate code for.
-    output_path : str or Path, optional
-        If given, writes code to this path. Otherwise returns code as string.
+        A Pydantic model class to convert to source code.
+    output_path : Union[str, Path], optional
+        If provided, the code will be written to this file path.
     model_name : str, optional
-        Optional name override for the model title.
+        If provided, overrides the default model name in the generated schema.
 
     Returns
     -------
     str
-        The generated Python source code.
+        The generated Python class code as a string.
     """
     schema = (
         model.model_json_schema()

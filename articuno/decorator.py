@@ -1,5 +1,6 @@
 from typing import Callable, Optional, Dict, Any
 
+
 def infer_response_model(
     name: str,
     example_input: Optional[Dict[str, Any]] = None,
