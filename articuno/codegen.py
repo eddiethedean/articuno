@@ -2,7 +2,6 @@ import json
 import tempfile
 from pathlib import Path
 from typing import Optional, Tuple, Union, Type
-from io import StringIO
 
 from datamodel_code_generator import InputFileType, generate
 from pydantic import BaseModel
@@ -18,26 +17,18 @@ def _write_json_schema_to_tempfile(schema: dict) -> Tuple[Path, tempfile.Tempora
     return json_path, temp_dir
 
 
-def _run_datamodel_codegen(input_path: Path, output_path: Optional[Path] = None) -> str:
+def _run_datamodel_codegen(input_path: Path) -> str:
     """
-    Run datamodel-code-generator on the given schema file path and capture the generated code.
+    Run datamodel-code-generator on the input JSON schema file and return generated code as string.
     """
-    # Use in-memory string buffer if no output path is provided
-    if output_path is None:
-        output_buffer = StringIO()
+    with tempfile.TemporaryDirectory() as temp_output_dir:
+        temp_output_path = Path(temp_output_dir) / "model.py"
         generate(
             input_=input_path,
             input_file_type=InputFileType.JsonSchema,
-            output=output_buffer,
+            output=temp_output_path,
         )
-        return output_buffer.getvalue()
-    else:
-        generate(
-            input_=input_path,
-            input_file_type=InputFileType.JsonSchema,
-            output=output_path,
-        )
-        return output_path.read_text(encoding="utf-8")
+        return temp_output_path.read_text(encoding="utf-8")
 
 
 def generate_class_code(
@@ -73,8 +64,12 @@ def generate_class_code(
 
     schema_path, temp_dir = _write_json_schema_to_tempfile(schema)
 
-    output_file_path = Path(output_path) if output_path else None
-
-    code = _run_datamodel_codegen(schema_path, output_file_path)
-
-    return code
+    if output_path:
+        generate(
+            input_=schema_path,
+            input_file_type=InputFileType.JsonSchema,
+            output=Path(output_path),
+        )
+        return Path(output_path).read_text(encoding="utf-8")
+    else:
+        return _run_datamodel_codegen(schema_path)

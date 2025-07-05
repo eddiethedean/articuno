@@ -13,4 +13,4 @@ __all__ = [
     "bootstrap_app",
 ]
 
-__version__ = "0.4.7"
+__version__ = "0.4.8"
