@@ -3,7 +3,34 @@ from pydantic import BaseModel, create_model
 import polars as pl
 import datetime
 
-_model_cache: Dict[str, Type[BaseModel]] = {}
+try:
+    import patito as pt
+    _has_patito = True
+except ImportError:
+    _has_patito = False
+
+
+def df_to_pydantic(
+    df: pl.DataFrame,
+    model: Optional[Type[BaseModel]] = None,
+    model_name: Optional[str] = None,
+) -> List[BaseModel]:
+    """
+    Convert a Polars DataFrame into a list of Pydantic model instances.
+
+    This function optionally infers a Pydantic model from the DataFrame's schema
+    and converts each row into a validated model instance.
+
+    :param df: The Polars DataFrame to convert.
+    :param model: A Pydantic model to use. If None, one is inferred.
+    :param model_name: Optional name to assign to the generated model class.
+    :return: A list of Pydantic model instances.
+    :rtype: List[BaseModel]
+    """
+    if model is None:
+        model = infer_pydantic_model(df, model_name=model_name or "AutoModel")
+    return [model(**row) for row in df.to_dicts()]
+
 
 def infer_pydantic_model(
     df: pl.DataFrame,
@@ -13,28 +40,21 @@ def infer_pydantic_model(
     """
     Infer a Pydantic model class from a Polars DataFrame schema.
 
-    Parameters
-    ----------
-    df : pl.DataFrame
-        Polars DataFrame to infer from.
-    model_name : str, optional
-        Name of the root Pydantic model class.
-    _model_cache : dict, optional
-        Cache for nested models.
+    Supports complex nested types, such as structs and lists, and detects nullable fields.
 
-    Returns
-    -------
-    Type[BaseModel]
-        Generated Pydantic model class.
+    :param df: The Polars DataFrame to infer the schema from.
+    :param model_name: The name to assign to the root model class.
+    :param _model_cache: Internal cache to reuse nested model classes for structs.
+    :return: A dynamically generated Pydantic model class.
+    :rtype: Type[BaseModel]
     """
     if _model_cache is None:
         _model_cache = {}
 
-    def wrap_optional(base_type: Any, nullable: bool) -> Any:
-        from typing import Optional
-        return Optional[base_type] if nullable else base_type
+    def wrap_optional(tp: Any, nullable: bool) -> Any:
+        return Optional[tp] if nullable else tp
 
-    def get_default_value(col: pl.Series) -> Any:
+    def get_first_non_null(col: pl.Series) -> Any:
         for val in col:
             if val is not None:
                 return val
@@ -46,7 +66,7 @@ def infer_pydantic_model(
         prefix: str = "",
     ) -> Any:
         nullable = column_data is not None and column_data.is_null().any()
-        default = get_default_value(column_data) if column_data is not None else None
+        default = get_first_non_null(column_data) if column_data is not None else None
 
         if dtype in {pl.Int8, pl.Int16, pl.Int32, pl.Int64,
                      pl.UInt8, pl.UInt16, pl.UInt32, pl.UInt64}:
@@ -75,26 +95,23 @@ def infer_pydantic_model(
                 for field in dtype.fields:
                     field_data = (
                         column_data.struct.field(field.name)
-                        if column_data is not None
-                        else None
+                        if column_data is not None else None
                     )
                     field_type, field_default = resolve_dtype(
                         field.dtype,
                         column_data=field_data,
                         prefix=f"{prefix}{field.name}."
                     )
-                    is_field_nullable = field_data is not None and field_data.is_null().any()
-                    from typing import Optional
+                    is_nullable = field_data is not None and field_data.is_null().any()
                     fields[field.name] = (
-                        Optional[field_type] if is_field_nullable else field_type,
-                        field_default if is_field_nullable else ...
+                        wrap_optional(field_type, is_nullable),
+                        field_default if is_nullable else ...
                     )
                 struct_model = create_model(f"{model_name}_{len(_model_cache)}_Struct", **fields)
                 _model_cache[struct_key] = struct_model
             return wrap_optional(struct_model, nullable), default
 
         elif dtype.__class__.__name__ == "List":
-            from typing import List
             inner_type, _ = resolve_dtype(dtype.inner)
             return wrap_optional(List[inner_type], nullable), default
 
@@ -109,148 +126,80 @@ def infer_pydantic_model(
     return create_model(model_name, **fields)
 
 
+def df_to_patito(
+    df: pl.DataFrame,
+    model: Optional[Type["pt.Model"]] = None,
+    model_name: Optional[str] = None,
+) -> List["pt.Model"]:
+    """
+    Convert a Polars DataFrame into a list of Patito model instances.
+
+    This function infers a Patito model if one isn't provided and uses it
+    to convert each DataFrame row into a validated instance.
+
+    :param df: The Polars DataFrame to convert.
+    :param model: A Patito model class to use. If None, one is inferred.
+    :param model_name: Optional name for the generated model class.
+    :return: A list of Patito model instances.
+    :rtype: List[pt.Model]
+    :raises ImportError: If Patito is not installed.
+    """
+    if not _has_patito:
+        raise ImportError("Patito is not installed. Try `pip install patito`.")
+
+    if model is None:
+        model = infer_patito_model(df, model_name=model_name or "AutoPatitoModel")
+
+    return [model(**row) for row in df.to_dicts()]
+
+
 def infer_patito_model(
     df: pl.DataFrame,
-    model_name: str = "AutoModel",
-    _model_cache: Optional[Dict[str, Any]] = None,
-) -> Any:
+    model_name: str = "AutoPatitoModel",
+) -> Type["pt.Model"]:
     """
     Infer a Patito model class from a Polars DataFrame schema.
 
-    Parameters
-    ----------
-    df : pl.DataFrame
-        Polars DataFrame to infer from.
-    model_name : str, optional
-        Name of the root Patito model class.
-    _model_cache : dict, optional
-        Cache for nested models.
+    Only top-level, flat schemas are supported. Nested structs are not currently supported.
 
-    Returns
-    -------
-    Any
-        Generated Patito model class.
+    :param df: The Polars DataFrame to infer the model from.
+    :param model_name: The name to assign to the Patito model.
+    :return: A dynamically generated Patito model class.
+    :rtype: Type[pt.Model]
+    :raises ImportError: If Patito is not installed.
     """
-    try:
-        import patito
-    except ImportError as e:
-        raise ImportError(
-            "The 'patito' package is required to use infer_patito_model. "
-            "Please install it with `pip install patito`."
-        ) from e
+    if not _has_patito:
+        raise ImportError("Patito is not installed. Try `pip install patito`.")
 
-    if _model_cache is None:
-        _model_cache = {}
+    fields = {}
 
-    def wrap_optional(base_type: Any, nullable: bool) -> Any:
-        from typing import Optional
-        return Optional[base_type] if nullable else base_type
-
-    def resolve_dtype(dtype: pl.DataType, column_data: Optional[pl.Series] = None) -> Any:
-        nullable = column_data is not None and column_data.is_null().any()
+    for name, dtype in df.schema.items():
+        col = df.get_column(name)
+        nullable = col.is_null().any()
 
         if dtype in {pl.Int8, pl.Int16, pl.Int32, pl.Int64,
                      pl.UInt8, pl.UInt16, pl.UInt32, pl.UInt64}:
-            return wrap_optional(int, nullable)
+            typ = int
         elif dtype in {pl.Float32, pl.Float64}:
-            return wrap_optional(float, nullable)
+            typ = float
         elif dtype == pl.Boolean:
-            return wrap_optional(bool, nullable)
+            typ = bool
         elif dtype == pl.Utf8:
-            return wrap_optional(str, nullable)
+            typ = str
         elif dtype == pl.Date:
-            return wrap_optional(patito.Date, nullable)
+            typ = datetime.date
         elif dtype == pl.Datetime:
-            return wrap_optional(patito.Datetime, nullable)
+            typ = datetime.datetime
         elif dtype == pl.Duration:
-            return wrap_optional(patito.Duration, nullable)
+            typ = datetime.timedelta
         elif dtype == pl.Null:
-            return type(None)
+            typ = type(None)
+        else:
+            typ = Any
 
-        elif dtype.__class__.__name__ == "Struct":
-            struct_key = str(dtype)
-            if struct_key in _model_cache:
-                return _model_cache[struct_key]
-            fields = {}
-            for field in dtype.fields:
-                field_data = (
-                    column_data.struct.field(field.name)
-                    if column_data is not None
-                    else None
-                )
-                field_type = resolve_dtype(field.dtype, column_data=field_data)
-                fields[field.name] = field_type
-            model_cls = patito.model(model_name + "_Struct")(type(model_name + "_Struct", (object,), fields))
-            _model_cache[struct_key] = model_cls
-            return model_cls
+        if nullable:
+            typ = Optional[typ]
 
-        elif dtype.__class__.__name__ == "List":
-            from typing import List
-            inner_type = resolve_dtype(dtype.inner)
-            return wrap_optional(List[inner_type], nullable)
+        fields[name] = pt.Field(typ)
 
-        return wrap_optional(Any, nullable)
-
-    fields = {}
-    for name, dtype in df.schema.items():
-        col = df.get_column(name)
-        fields[name] = resolve_dtype(dtype, column_data=col)
-
-    model_cls = patito.model(model_name)(type(model_name, (object,), fields))
-    return model_cls
-
-
-def df_to_pydantic(
-    df: pl.DataFrame,
-    model: Optional[Type[BaseModel]] = None,
-    model_name: Optional[str] = None,
-) -> List[BaseModel]:
-    """
-    Convert a Polars DataFrame to a list of Pydantic model instances.
-
-    Parameters
-    ----------
-    df : pl.DataFrame
-        The Polars DataFrame to convert.
-    model : Type[BaseModel], optional
-        An existing Pydantic model class to use for conversion.
-        If None, a model will be inferred from the DataFrame.
-    model_name : str, optional
-        The name to use if inferring the model.
-
-    Returns
-    -------
-    List[BaseModel]
-        A list of Pydantic model instances corresponding to DataFrame rows.
-    """
-    if model is None:
-        model = infer_pydantic_model(df, model_name=model_name or "AutoModel")
-    return [model(**row) for row in df.to_dicts()]
-
-
-def df_to_patito(
-    df: pl.DataFrame,
-    model: Optional[Any] = None,
-    model_name: Optional[str] = None,
-) -> List[Any]:
-    """
-    Convert a Polars DataFrame to a list of Patito model instances.
-
-    Parameters
-    ----------
-    df : pl.DataFrame
-        The Polars DataFrame to convert.
-    model : Any, optional
-        An existing Patito model class to use for conversion.
-        If None, a model will be inferred from the DataFrame.
-    model_name : str, optional
-        The name to use if inferring the model.
-
-    Returns
-    -------
-    List[Any]
-        A list of Patito model instances corresponding to DataFrame rows.
-    """
-    if model is None:
-        model = infer_patito_model(df, model_name=model_name or "AutoModel")
-    return [model(**row) for row in df.to_dicts()]
+    return type(model_name, (pt.Model,), fields)

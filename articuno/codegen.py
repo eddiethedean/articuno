@@ -1,32 +1,73 @@
-from typing import Optional, Type
-from pydantic import BaseModel
 import json
 import tempfile
 from pathlib import Path
+from typing import Optional, Type, Union
+
+from pydantic import BaseModel
+
+try:
+    import patito as pt
+    _has_patito = True
+except ImportError:
+    _has_patito = False
+
 from datamodel_code_generator import InputFileType, generate
+
+
+def _write_json_schema_to_tempfile(schema: dict) -> Path:
+    """
+    Write a given JSON schema to a temporary file.
+
+    :param schema: The JSON schema dictionary.
+    :return: Path to the written temporary file.
+    :rtype: Path
+    """
+    temp_dir = tempfile.TemporaryDirectory()
+    json_path = Path(temp_dir.name) / "schema.json"
+    json_path.write_text(json.dumps(schema, indent=2), encoding="utf-8")
+    json_path.temp_dir = temp_dir  # Keep reference to avoid deletion
+    return json_path
+
+
+def _run_datamodel_codegen(schema_path: Path, output_path: Optional[Path] = None) -> str:
+    """
+    Run datamodel-code-generator on a schema JSON file.
+
+    :param schema_path: Path to the input JSON schema file.
+    :param output_path: Optional output file path. If None, a temporary path is used.
+    :return: The generated Python source code as a string.
+    :rtype: str
+    """
+    if output_path is None:
+        output_path = schema_path.parent / "model_output.py"
+
+    generate(
+        input=schema_path,
+        input_file_type=InputFileType.JsonSchema,
+        output=output_path,
+    )
+    return output_path.read_text(encoding="utf-8")
 
 
 def generate_pydantic_class_code(
     model: Type[BaseModel],
-    output_path: Optional[str] = None,
+    output_path: Optional[Union[str, Path]] = None,
     model_name: Optional[str] = None,
 ) -> str:
     """
-    Generate Python class source code from a Pydantic model using datamodel-code-generator.
+    Generate Python class source code from a Pydantic model.
 
-    Parameters
-    ----------
-    model : Type[BaseModel]
-        A Pydantic model class (can be dynamic).
-    output_path : str or Path, optional
-        If given, saves the generated class code to this file path.
-    model_name : str, optional
-        Optionally override the class name in the schema title before generation.
+    This function converts a dynamic Pydantic model to a JSON Schema,
+    then uses `datamodel-code-generator` to produce Python source code.
 
-    Returns
-    -------
-    str
-        The generated Python source code as a string.
+    :param model: The Pydantic model class to convert.
+    :type model: Type[BaseModel]
+    :param output_path: Optional path to write the output `.py` file.
+    :type output_path: Optional[Union[str, Path]]
+    :param model_name: Optional override for the schema's title field.
+    :type model_name: Optional[str]
+    :return: The generated Python code as a string.
+    :rtype: str
     """
     if hasattr(model, "model_json_schema"):
         schema = model.model_json_schema()
@@ -36,66 +77,31 @@ def generate_pydantic_class_code(
     if model_name:
         schema["title"] = model_name
 
-    schema_str = json.dumps(schema, indent=2)
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        input_file = Path(tmpdir) / "schema.json"
-        output_file = Path(tmpdir) / "model.py"
-
-        input_file.write_text(schema_str, encoding="utf-8")
-
-        generate(
-            input_file,
-            input_file_type=InputFileType.JsonSchema,
-            output=output_file,
-        )
-
-        code = output_file.read_text(encoding="utf-8")
-
-        if output_path:
-            Path(output_path).write_text(code, encoding="utf-8")
-
-        return code
+    schema_path = _write_json_schema_to_tempfile(schema)
+    return _run_datamodel_codegen(schema_path, Path(output_path) if output_path else None)
 
 
 def generate_patito_class_code(
-    model: Type,
-    output_path: Optional[str] = None,
-    model_name: Optional[str] = None,
+    model: Type["pt.Model"],
+    output_path: Optional[Union[str, Path]] = None,
 ) -> str:
     """
     Generate Python class source code from a Patito model.
 
-    This function requires Patito to be installed.
+    This serializes the Patito model to JSON Schema and uses
+    `datamodel-code-generator` to produce corresponding Python code.
 
-    Parameters
-    ----------
-    model : Type
-        A Patito model class.
-    output_path : str or Path, optional
-        If given, saves the generated class code to this file path.
-    model_name : str, optional
-        Optionally override the class name before generation.
-
-    Returns
-    -------
-    str
-        The generated Python source code as a string.
+    :param model: A Patito model class.
+    :type model: Type[pt.Model]
+    :param output_path: Optional path to save the generated code.
+    :type output_path: Optional[Union[str, Path]]
+    :return: The generated Python source code as a string.
+    :rtype: str
+    :raises ImportError: If Patito is not installed.
     """
-    try:
-        import patito
-    except ImportError as e:
-        raise ImportError(
-            "The 'patito' package is required to use generate_patito_class_code. "
-            "Please install it with `pip install patito`."
-        ) from e
+    if not _has_patito:
+        raise ImportError("Patito is not installed. Try `pip install patito`.")
 
-    source_code = patito.get_source(model)
-    if model_name:
-        import re
-        source_code = re.sub(r"class\s+\w+", f"class {model_name}", source_code)
-
-    if output_path:
-        Path(output_path).write_text(source_code, encoding="utf-8")
-
-    return source_code
+    schema = model.model_json_schema()
+    schema_path = _write_json_schema_to_tempfile(schema)
+    return _run_datamodel_codegen(schema_path, Path(output_path) if output_path else None)
