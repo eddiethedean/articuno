@@ -1,4 +1,3 @@
-
 # ❄️ Articuno ❄️
 
 Convert Polars DataFrames to Pydantic models — and optionally generate clean Python code from them.
@@ -9,30 +8,30 @@ Convert Polars DataFrames to Pydantic models — and optionally generate clean P
 
 ## 📋 Table of Contents
 
-- [🚀 Features](#-features)  
-- [📦 Installation](#-installation)  
-- [🛠 Usage](#-usage)  
-- [🧬 Example: Nested Structs](#-example-nested-structs)  
-- [🦜 Patito Integration (Optional)](#-patito-integration-optional)  
-- [⏰ When to Use Articuno](#-when-to-use-articuno)  
-- [⚙️ Supported Type Mappings](#️-supported-type-mappings)  
-- [🧩 Integration Ideas](#-integration-ideas)  
-- [🧪 Development & Testing](#-development--testing)  
-- [🧙‍♂️ FastAPI Integration (Decorator + CLI Bootstrap)](#️-fastapi-integration-decorator--cli-bootstrap)  
-- [🛠 CLI Options](#-cli-options)  
-- [📜 Patito vs Articuno](#-patito-vs-articuno)  
-- [License](#license)  
+* [🚀 Features](#-features)
+* [📦 Installation](#-installation)
+* [🛠 Usage](#-usage)
+* [🧬 Example: Nested Structs](#-example-nested-structs)
+* [🦜 Patito Integration (Optional)](#-patito-integration-optional)
+* [⏰ When to Use Articuno](#-when-to-use-articuno)
+* [⚙️ Supported Type Mappings](#️-supported-type-mappings)
+* [🧩 Integration Ideas](#-integration-ideas)
+* [🧪 Development & Testing](#-development--testing)
+* [🧙‍♂️ FastAPI Integration (Decorator + CLI Bootstrap)](#️-fastapi-integration-decorator--cli-bootstrap)
+* [🛠 CLI Options](#-cli-options)
+* [📜 Patito vs Articuno](#-patito-vs-articuno)
+* [License](#license)
 
 ---
 
 ## 🚀 Features
 
-- 🔍 **Infer Pydantic models** directly from `polars.DataFrame` schemas  
-- 🧪 **Validate data** by converting DataFrame rows to Pydantic instances  
-- 🧱 **Supports nested Structs**, Lists, Nullable fields, and advanced types  
-- 🧬 **Generate Python model code** from dynamic models using [datamodel-code-generator](https://pypi.org/project/datamodel-code-generator/)  
-- 🦜 **Optional Patito integration** for declarative, constraint-rich models and advanced validation  
-- 🎨 **Generate Patito model code** alongside Pydantic for flexible schema workflows  
+* 🔍 **Infer Pydantic models** directly from `polars.DataFrame` schemas
+* 🧪 **Validate data** by converting DataFrame rows to Pydantic instances
+* 🧱 **Supports nested Structs**, Lists, Nullable fields, and advanced types
+* 🧬 **Generate Python model code** from dynamic models using [datamodel-code-generator](https://pypi.org/project/datamodel-code-generator/)
+* 🦜 **Optional Patito integration** for declarative, constraint-rich models and advanced validation
+* 🎨 **Generate Patito model code** alongside Pydantic for flexible schema workflows
 
 ---
 
@@ -40,6 +39,13 @@ Convert Polars DataFrames to Pydantic models — and optionally generate clean P
 
 ```bash
 pip install articuno
+```
+
+Optional extras:
+
+```bash
+pip install datamodel-code-generator  # for code generation
+pip install patito                    # for Patito support
 ```
 
 ---
@@ -65,6 +71,7 @@ print(models[0].dict())
 ```
 
 **Output:**
+
 ```
 name='Alice' age=30 is_active=True
 {'name': 'Alice', 'age': 30, 'is_active': True}
@@ -78,21 +85,7 @@ name='Alice' age=30 is_active=True
 from articuno import infer_pydantic_model
 
 model = infer_pydantic_model(df, model_name="UserModel")
-print(model.schema_json(indent=2))
-```
-
-**Output (snippet):**
-```json
-{
-  "title": "UserModel",
-  "type": "object",
-  "properties": {
-    "name": { "title": "Name", "type": "string" },
-    "age": { "title": "Age", "type": "integer" },
-    "is_active": { "title": "Is Active", "type": "boolean" }
-  },
-  "required": ["name", "age", "is_active"]
-}
+print(model.model_json_schema(indent=2))
 ```
 
 ---
@@ -100,13 +93,14 @@ print(model.schema_json(indent=2))
 ### 3. Generate Python Source Code from a Model
 
 ```python
-from articuno import generate_pydantic_class_code
+from articuno import generate_class_code
 
-code = generate_pydantic_class_code(model, model_name="UserModel")
+code = generate_class_code(model, model_name="UserModel")
 print(code)
 ```
 
 **Output:**
+
 ```python
 from pydantic import BaseModel
 
@@ -119,7 +113,7 @@ class UserModel(BaseModel):
 Or write it to a file:
 
 ```python
-generate_pydantic_class_code(model, output_path="user_model.py")
+generate_class_code(model, output_path="user_model.py")
 ```
 
 ---
@@ -144,9 +138,10 @@ print(models[0].user.name)
 ```
 
 **Output:**
+
 ```
-AutoModel(user=AutoModel_user_Struct(name='Alice', age=30))
-AutoModel_user_Struct(name='Alice', age=30)
+AutoModel(user=AutoModel_0_Struct(name='Alice', age=30))
+AutoModel_0_Struct(name='Alice', age=30)
 Alice
 ```
 
@@ -158,9 +153,8 @@ Articuno can optionally generate and validate models using [Patito](https://pypi
 
 ### How it works:
 
-- Use `infer_patito_model` alongside `infer_pydantic_model` to create Patito models from Polars DataFrames.  
-- Generate Patito model source code with `generate_patito_class_code`.  
-- Validate and enforce schemas with Patito's constraint system for tighter data rules.  
+* Use `df_to_patito(df)` to convert rows into Patito instances
+* Use `infer_patito_model(df)` to generate a reusable Patito model class
 
 ### Example:
 
@@ -181,38 +175,38 @@ pip install patito
 
 ## ⏰ When to Use Articuno
 
-- ✅ You use **Polars** and want **type-safe modeling**  
-- ✅ You dynamically load or transform tabular data  
-- ✅ You want to **generate sharable Python classes**  
-- ✅ You want to **validate Polars DataFrames** using Pydantic rules  
-- ✅ You want **optional advanced validation** with Patito  
+* ✅ You use **Polars** and want **type-safe modeling**
+* ✅ You dynamically load or transform tabular data
+* ✅ You want to **generate sharable Python classes**
+* ✅ You want to **validate Polars DataFrames** using Pydantic rules
+* ✅ You want **optional advanced validation** with Patito
 
 ---
 
 ## ⚙️ Supported Type Mappings
 
-Polars Type | Pydantic Type
-------------|---------------
-`pl.Int*`, `pl.UInt*` | `int`  
-`pl.Float*`           | `float`  
-`pl.Utf8`             | `str`  
-`pl.Boolean`          | `bool`  
-`pl.Date`             | `datetime.date`  
-`pl.Datetime`         | `datetime.datetime`  
-`pl.Duration`         | `datetime.timedelta`  
-`pl.List`             | `List[...]`  
-`pl.Struct`           | Nested Pydantic model  
-`pl.Null`             | `Optional[...]`  
+| Polars Type           | Pydantic Type         |
+| --------------------- | --------------------- |
+| `pl.Int*`, `pl.UInt*` | `int`                 |
+| `pl.Float*`           | `float`               |
+| `pl.Utf8`             | `str`                 |
+| `pl.Boolean`          | `bool`                |
+| `pl.Date`             | `datetime.date`       |
+| `pl.Datetime`         | `datetime.datetime`   |
+| `pl.Duration`         | `datetime.timedelta`  |
+| `pl.List`             | `List[...]`           |
+| `pl.Struct`           | Nested Pydantic model |
+| `pl.Null`             | `Optional[...]`       |
 
 ---
 
 ## 🧩 Integration Ideas
 
-- 🔐 Use for **FastAPI** or **Litestar** API schemas  
-- 🧼 Use in **ETL pipelines** to enforce schema contracts  
-- 📄 Use to **generate Pydantic models** from data exports  
-- 🔀 Use with `polars.read_json` / `read_parquet` to auto-model nested data  
-- 🦜 Use **Patito models** for advanced schema validation where needed  
+* 🔐 Use for **FastAPI** or **Litestar** API schemas
+* 🧼 Use in **ETL pipelines** to enforce schema contracts
+* 📄 Use to **generate Pydantic models** from data exports
+* 🔀 Use with `polars.read_json` / `read_parquet` to auto-model nested data
+* 🦜 Use **Patito models** for advanced schema validation where needed
 
 ---
 
@@ -229,15 +223,15 @@ pytest
 
 ## 🧙‍♂️ FastAPI Integration (Decorator + CLI Bootstrap)
 
-Articuno makes it easy to generate response_models for your FastAPI endpoints that return polars.DataFrames — no need to manually define Pydantic models.
+Articuno makes it easy to generate response\_models for your FastAPI endpoints that return polars.DataFrames — no need to manually define Pydantic models.
 
 ### 🧩 Step 1: Add the Decorator
 
 Use the `@infer_response_model` decorator on your FastAPI endpoint. Provide:
 
-- a name for the generated Pydantic model,  
-- an example input dict to simulate a call to your endpoint,  
-- an optional path to your models.py file (defaults to `models.py` next to the FastAPI app file).  
+* a name for the generated Pydantic model,
+* an example input dict to simulate a call to your endpoint,
+* an optional path to your models.py file (defaults to `models.py` next to the FastAPI app file).
 
 ```python
 from fastapi import FastAPI
@@ -271,17 +265,17 @@ articuno bootstrap app/main.py
 
 This will:
 
-1. Import and call all decorated endpoints with the example input  
-2. Infer a Pydantic model from the returned DataFrame  
-3. Write the model to the specified models.py file  
-4. Update your FastAPI app to use the generated response models  
+1. Import and call all decorated endpoints with the example input
+2. Infer a Pydantic model from the returned DataFrame
+3. Write the model to the specified models.py file
+4. Update your FastAPI app to use the generated response models
 
 ---
 
 ## 🛠 CLI Options
 
 ```bash
-Usage: cli.py bootstrap [OPTIONS] APP_PATH
+Usage: articuno bootstrap [OPTIONS] APP_PATH
 
 Arguments:
   APP_PATH                Path to your FastAPI app file (e.g., app/main.py)
@@ -296,13 +290,13 @@ Options:
 
 ## 📜 Patito vs Articuno
 
-| Feature                    | **Patito**             | **Articuno**               |
-|----------------------------|------------------------|----------------------------|
-| Polars–Pydantic bridge     | ✅ Declarative schema  | ✅ Dynamic inference       |
-| Validation constraints     | ✅ Unique, bounds       | ⚠️ Basic types, nullables  |
-| Nested Structs             | ❌ Not supported       | ✅ Fully recursive         |
-| Code generation            | ❌                     | ✅ via datamodel-code-gen  |
-| Example/mock data          | ✅ `.examples`         | ❌                        |
+| Feature                | **Patito**           | **Articuno**              |
+| ---------------------- | -------------------- | ------------------------- |
+| Polars–Pydantic bridge | ✅ Declarative schema | ✅ Dynamic inference       |
+| Validation constraints | ✅ Unique, bounds     | ⚠️ Basic types, nullables |
+| Nested Structs         | ❌ Not supported      | ✅ Fully recursive         |
+| Code generation        | ❌                    | ✅ via datamodel-code-gen  |
+| Example/mock data      | ✅ `.examples`        | ❌                         |
 
 **[Patito](https://pypi.org/project/patito/)** is ideal for static schema validation with custom constraints and ETL pipelines.
 
