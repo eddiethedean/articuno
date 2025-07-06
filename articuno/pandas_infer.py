@@ -1,12 +1,11 @@
 """
-Pandas model inference utilities for generating Pydantic or Patito models.
+pandas_infer.py
 
-This module provides functions to analyze pandas.DataFrames and construct equivalent
-Pydantic or Patito models. Nested dictionaries are supported recursively as nested models.
+Provides functions to infer Pydantic or Patito models from Pandas DataFrames.
+Supports nullable fields and basic nested dict-to-struct conversion for Pydantic.
 """
 
-from typing import Any, Dict, List, Optional, Type, Union
-from pydantic import BaseModel, create_model
+from typing import Any, Dict, Optional, Type, List, Union
 import datetime
 
 try:
@@ -21,6 +20,8 @@ try:
 except ImportError:
     _has_patito = False
 
+from pydantic import BaseModel, create_model
+
 
 def _is_pandas_df(df: Any) -> bool:
     return _has_pandas and isinstance(df, pd.DataFrame)
@@ -29,120 +30,103 @@ def _is_pandas_df(df: Any) -> bool:
 def infer_pydantic_model_from_pandas(
     df: "pd.DataFrame",
     model_name: str = "AutoPandasModel",
-    _model_cache: Optional[Dict[str, Type[BaseModel]]] = None,
 ) -> Type[BaseModel]:
     """
     Infer a Pydantic model class from a pandas DataFrame.
 
-    Recursively detects nested dictionaries and lists of dictionaries,
-    and generates nested model classes.
+    This supports nullable fields and nested dictionaries as submodels.
 
-    Parameters
-    ----------
-    df : pd.DataFrame
-        The pandas DataFrame to inspect.
-    model_name : str
-        The name of the root model class.
-    _model_cache : dict, optional
-        Internal cache to avoid regenerating identical nested models.
+    Args:
+        df: A pandas DataFrame to infer the schema from.
+        model_name: Name of the generated Pydantic model class.
 
-    Returns
-    -------
-    Type[BaseModel]
-        A dynamically generated Pydantic model class.
+    Returns:
+        A Pydantic model class that matches the structure of the input DataFrame.
     """
     if not _has_pandas:
         raise ImportError("Pandas is not installed. Try `pip install pandas`.")
 
-    if _model_cache is None:
-        _model_cache = {}
+    fields: Dict[str, tuple] = {}
 
-    def wrap_optional(tp: Any, nullable: bool) -> Any:
-        return Optional[tp] if nullable else tp
+    for name, dtype in df.dtypes.items():
+        nullable = df[name].isnull().any()
+        non_nulls = df[name].dropna()
+        sample_value = non_nulls.iloc[0] if not non_nulls.empty else None
 
-    def resolve_dtype(
-        series: pd.Series,
-        prefix: str = ""
-    ) -> Any:
-        nullable = series.isnull().any()
-        non_nulls = series.dropna()
-        sample = non_nulls.iloc[0] if not non_nulls.empty else None
-
-        # Handle nested dict
-        if isinstance(sample, dict):
-            struct_key = f"{prefix}{series.name}"
-            if struct_key in _model_cache:
-                struct_model = _model_cache[struct_key]
-            else:
-                nested_fields = {}
-                for k, v in sample.items():
-                    field_type, default = resolve_dtype(
-                        pd.Series([d.get(k) for d in series.dropna() if isinstance(d, dict)]),
-                        prefix=f"{prefix}{k}."
-                    )
-                    nested_fields[k] = (field_type, default if default is not None else ...)
-                struct_model = create_model(f"{model_name}_{len(_model_cache)}_Nested", **nested_fields)
-                _model_cache[struct_key] = struct_model
-            return wrap_optional(struct_model, nullable), sample
-
-        # Handle list of dicts
-        if isinstance(sample, list) and sample and isinstance(sample[0], dict):
-            # assume homogeneous list of dicts
-            nested_series = pd.Series([sample[0] for sample in non_nulls if sample])
-            nested_type, _ = resolve_dtype(nested_series, prefix=f"{prefix}item.")
-            return wrap_optional(List[nested_type], nullable), sample
-
-        # Primitive type mapping
-        if pd.api.types.is_integer_dtype(series):
+        # Determine base type
+        if pd.api.types.is_integer_dtype(dtype):
             typ = int
-        elif pd.api.types.is_float_dtype(series):
+        elif pd.api.types.is_float_dtype(dtype):
             typ = float
-        elif pd.api.types.is_bool_dtype(series):
+        elif pd.api.types.is_bool_dtype(dtype):
             typ = bool
-        elif pd.api.types.is_datetime64_any_dtype(series):
+        elif pd.api.types.is_datetime64_any_dtype(dtype):
             typ = datetime.datetime
-        elif isinstance(sample, str):
+        elif pd.api.types.is_object_dtype(dtype) and isinstance(sample_value, dict):
+            nested_model = infer_pydantic_model_from_dict(sample_value, name.capitalize())
+            typ = nested_model
+        elif pd.api.types.is_object_dtype(dtype) and isinstance(sample_value, str):
             typ = str
-        elif isinstance(sample, list):
-            inner_type = type(sample[0]) if sample else Any
+        elif pd.api.types.is_object_dtype(dtype) and isinstance(sample_value, list):
+            inner_type = type(sample_value[0]) if sample_value else Any
             typ = List[inner_type]
-        elif sample is not None:
-            typ = type(sample)
+        elif pd.api.types.is_object_dtype(dtype):
+            typ = type(sample_value) if sample_value is not None else Any
         else:
             typ = Any
 
-        return wrap_optional(typ, nullable), sample
+        if nullable:
+            typ = Optional[typ]
 
-    fields: Dict[str, tuple] = {}
-
-    for name in df.columns:
-        series = df[name]
-        field_type, default = resolve_dtype(series)
-        fields[name] = (field_type, default if default is not None else ...)
+        fields[name] = (typ, sample_value if sample_value is not None else ...)
 
     return create_model(model_name, **fields)
+
+
+def infer_pydantic_model_from_dict(
+    sample: dict,
+    model_name: str = "NestedModel"
+) -> Type[BaseModel]:
+    """
+    Recursively build a nested Pydantic model from a dictionary.
+
+    Args:
+        sample: A sample dictionary representing a nested structure.
+        model_name: Name to give the created submodel.
+
+    Returns:
+        A dynamically created Pydantic submodel class.
+    """
+    sub_fields: Dict[str, tuple] = {}
+    for key, value in sample.items():
+        if isinstance(value, dict):
+            sub_model = infer_pydantic_model_from_dict(value, model_name=f"{model_name}_{key.capitalize()}")
+            sub_fields[key] = (sub_model, ...)
+        elif isinstance(value, list):
+            inner_type = type(value[0]) if value else Any
+            sub_fields[key] = (List[inner_type], ...)
+        else:
+            sub_fields[key] = (type(value), ...)
+    return create_model(model_name, **sub_fields)
 
 
 def infer_patito_model_from_pandas(
     df: "pd.DataFrame",
     model_name: str = "AutoPatitoModel",
+    infer_constraints: bool = False,
 ) -> Type["pt.Model"]:
     """
     Infer a Patito model class from a pandas DataFrame.
 
-    Nested dictionaries are not supported in Patito inference.
+    Supports basic constraints like bounds, length, and uniqueness if enabled.
 
-    Parameters
-    ----------
-    df : pd.DataFrame
-        The pandas DataFrame to inspect.
-    model_name : str
-        Name of the generated Patito model.
+    Args:
+        df: A pandas DataFrame to infer the schema from.
+        model_name: Name of the generated Patito model class.
+        infer_constraints: Whether to add min/max/unique constraints.
 
-    Returns
-    -------
-    Type[pt.Model]
-        A dynamically generated Patito model class.
+    Returns:
+        A Patito model class matching the structure of the DataFrame.
     """
     if not _has_pandas:
         raise ImportError("Pandas is not installed. Try `pip install pandas`.")
@@ -151,31 +135,41 @@ def infer_patito_model_from_pandas(
 
     fields = {}
 
-    for name, series in df.items():
-        nullable = series.isnull().any()
-        sample = series.dropna().iloc[0] if not series.dropna().empty else None
+    for name, dtype in df.dtypes.items():
+        nullable = df[name].isnull().any()
+        non_nulls = df[name].dropna()
+        sample_value = non_nulls.iloc[0] if not non_nulls.empty else None
+        kwargs = {}
 
-        if pd.api.types.is_integer_dtype(series):
+        if pd.api.types.is_integer_dtype(dtype):
             typ = int
-        elif pd.api.types.is_float_dtype(series):
+            if infer_constraints and not non_nulls.empty:
+                kwargs["ge"] = int(non_nulls.min())
+                kwargs["le"] = int(non_nulls.max())
+        elif pd.api.types.is_float_dtype(dtype):
             typ = float
-        elif pd.api.types.is_bool_dtype(series):
+            if infer_constraints and not non_nulls.empty:
+                kwargs["ge"] = float(non_nulls.min())
+                kwargs["le"] = float(non_nulls.max())
+        elif pd.api.types.is_bool_dtype(dtype):
             typ = bool
-        elif pd.api.types.is_datetime64_any_dtype(series):
+        elif pd.api.types.is_datetime64_any_dtype(dtype):
             typ = datetime.datetime
-        elif isinstance(sample, str):
+        elif pd.api.types.is_object_dtype(dtype) and isinstance(sample_value, str):
             typ = str
-        elif isinstance(sample, list):
-            inner = type(sample[0]) if sample else Any
-            typ = List[inner]
-        elif sample is not None:
-            typ = type(sample)
+            if infer_constraints and not non_nulls.empty:
+                lengths = non_nulls.str.len()
+                kwargs["min_length"] = int(lengths.min())
+                kwargs["max_length"] = int(lengths.max())
         else:
-            typ = Any
+            typ = type(sample_value) if sample_value is not None else Any
 
         if nullable:
             typ = Optional[typ]
 
-        fields[name] = pt.Field(typ)
+        if infer_constraints and df[name].is_unique:
+            kwargs["unique"] = True
+
+        fields[name] = pt.Field(typ, **kwargs)
 
     return type(model_name, (pt.Model,), fields)

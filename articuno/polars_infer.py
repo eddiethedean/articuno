@@ -1,22 +1,23 @@
 """
-Polars DataFrame model inference utilities for Pydantic and Patito.
+polars_infer.py
+
+Provides functions to infer Pydantic or Patito models from Polars DataFrames.
+Supports nested structs, nullable types, and optional constraint inference for Patito models.
 """
 
-from typing import Any, Dict, List, Optional, Type
-from pydantic import BaseModel, create_model
+from typing import Any, Dict, Optional, Type, List, Union
 import datetime
 
 try:
     import polars as pl  # type: ignore
-    _has_polars = True
-except ImportError:
-    _has_polars = False
-
-try:
     import patito as pt  # type: ignore
+    _has_polars = True
     _has_patito = True
 except ImportError:
+    _has_polars = False
     _has_patito = False
+
+from pydantic import BaseModel, create_model
 
 
 def _is_polars_df(df: Any) -> bool:
@@ -28,6 +29,17 @@ def infer_pydantic_model(
     model_name: str = "AutoPolarsModel",
     _model_cache: Optional[Dict[str, Type[BaseModel]]] = None,
 ) -> Type[BaseModel]:
+    """
+    Infer a Pydantic model class from a Polars DataFrame.
+
+    Args:
+        df: A Polars DataFrame to infer the schema from.
+        model_name: Name of the generated Pydantic model class.
+        _model_cache: Internal use. Caches nested struct models to avoid duplication.
+
+    Returns:
+        A Pydantic model class that matches the structure of the input DataFrame.
+    """
     if not _has_polars:
         raise ImportError("Polars is not installed. Try `pip install polars`.")
 
@@ -110,7 +122,19 @@ def infer_pydantic_model(
 def infer_patito_model(
     df: "pl.DataFrame",
     model_name: str = "AutoPatitoModel",
+    infer_constraints: bool = False,
 ) -> Type["pt.Model"]:
+    """
+    Infer a Patito model class from a Polars DataFrame.
+
+    Args:
+        df: A Polars DataFrame to infer the schema from.
+        model_name: Name of the generated Patito model class.
+        infer_constraints: Whether to automatically generate bounds, lengths, and uniqueness constraints.
+
+    Returns:
+        A Patito model class that matches the DataFrame's structure.
+    """
     if not _has_polars:
         raise ImportError("Polars is not installed. Try `pip install polars`.")
     if not _has_patito:
@@ -121,16 +145,29 @@ def infer_patito_model(
     for name, dtype in df.schema.items():
         col = df.get_column(name)
         nullable = col.is_null().any()
+        kwargs = {}
+        non_nulls = col.drop_nulls()
+        sample_value = non_nulls[0] if len(non_nulls) else None
 
         if dtype in {pl.Int8, pl.Int16, pl.Int32, pl.Int64,
                      pl.UInt8, pl.UInt16, pl.UInt32, pl.UInt64}:
             typ = int
+            if infer_constraints and len(non_nulls):
+                kwargs["ge"] = int(non_nulls.min())
+                kwargs["le"] = int(non_nulls.max())
         elif dtype in {pl.Float32, pl.Float64}:
             typ = float
+            if infer_constraints and len(non_nulls):
+                kwargs["ge"] = float(non_nulls.min())
+                kwargs["le"] = float(non_nulls.max())
         elif dtype == pl.Boolean:
             typ = bool
         elif dtype == pl.Utf8:
             typ = str
+            if infer_constraints and len(non_nulls):
+                lengths = non_nulls.str.len_chars()
+                kwargs["min_length"] = int(lengths.min())
+                kwargs["max_length"] = int(lengths.max())
         elif dtype == pl.Date:
             typ = datetime.date
         elif dtype == pl.Datetime:
@@ -145,6 +182,9 @@ def infer_patito_model(
         if nullable:
             typ = Optional[typ]
 
-        fields[name] = pt.Field(typ)
+        if infer_constraints and col.is_unique():
+            kwargs["unique"] = True
+
+        fields[name] = pt.Field(typ, **kwargs)
 
     return type(model_name, (pt.Model,), fields)
