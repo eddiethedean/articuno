@@ -1,11 +1,9 @@
 """
-pandas_infer.py
-
-Provides functions to infer Pydantic or Patito models from Pandas DataFrames.
-Supports nullable fields and basic nested dict-to-struct conversion for Pydantic.
+Pandas DataFrame model inference utilities for converting pandas DataFrames into Pydantic models.
 """
 
-from typing import Any, Dict, Optional, Type, List, Union
+from typing import Any, Dict, List, Optional, Type
+from pydantic import BaseModel, create_model
 import datetime
 
 try:
@@ -14,34 +12,27 @@ try:
 except ImportError:
     _has_pandas = False
 
-try:
-    import patito as pt  # type: ignore
-    _has_patito = True
-except ImportError:
-    _has_patito = False
-
-from pydantic import BaseModel, create_model
-
 
 def _is_pandas_df(df: Any) -> bool:
     return _has_pandas and isinstance(df, pd.DataFrame)
 
 
-def infer_pydantic_model_from_pandas(
+def infer_pydantic_model(
     df: "pd.DataFrame",
     model_name: str = "AutoPandasModel",
 ) -> Type[BaseModel]:
     """
-    Infer a Pydantic model class from a pandas DataFrame.
+    Infer a Pydantic model class from a pandas DataFrame schema.
 
-    This supports nullable fields and nested dictionaries as submodels.
+    This function infers field types based on the DataFrame's dtypes and sample
+    non-null values. Nested dict columns are typed as `dict` without further inference.
 
     Args:
-        df: A pandas DataFrame to infer the schema from.
-        model_name: Name of the generated Pydantic model class.
+        df: pandas DataFrame to infer the model from.
+        model_name: Optional model class name.
 
     Returns:
-        A Pydantic model class that matches the structure of the input DataFrame.
+        A dynamically created Pydantic model class.
     """
     if not _has_pandas:
         raise ImportError("Pandas is not installed. Try `pip install pandas`.")
@@ -53,7 +44,6 @@ def infer_pydantic_model_from_pandas(
         non_nulls = df[name].dropna()
         sample_value = non_nulls.iloc[0] if not non_nulls.empty else None
 
-        # Determine base type
         if pd.api.types.is_integer_dtype(dtype):
             typ = int
         elif pd.api.types.is_float_dtype(dtype):
@@ -62,16 +52,16 @@ def infer_pydantic_model_from_pandas(
             typ = bool
         elif pd.api.types.is_datetime64_any_dtype(dtype):
             typ = datetime.datetime
-        elif pd.api.types.is_object_dtype(dtype) and isinstance(sample_value, dict):
-            nested_model = infer_pydantic_model_from_dict(sample_value, name.capitalize())
-            typ = nested_model
-        elif pd.api.types.is_object_dtype(dtype) and isinstance(sample_value, str):
-            typ = str
-        elif pd.api.types.is_object_dtype(dtype) and isinstance(sample_value, list):
-            inner_type = type(sample_value[0]) if sample_value else Any
-            typ = List[inner_type]
         elif pd.api.types.is_object_dtype(dtype):
-            typ = type(sample_value) if sample_value is not None else Any
+            # Treat nested dicts and other objects as plain dict or type of sample
+            if isinstance(sample_value, dict):
+                typ = dict
+            elif isinstance(sample_value, list):
+                typ = List[Any]
+            elif isinstance(sample_value, str):
+                typ = str
+            else:
+                typ = type(sample_value) if sample_value is not None else Any
         else:
             typ = Any
 
@@ -83,93 +73,24 @@ def infer_pydantic_model_from_pandas(
     return create_model(model_name, **fields)
 
 
-def infer_pydantic_model_from_dict(
-    sample: dict,
-    model_name: str = "NestedModel"
-) -> Type[BaseModel]:
-    """
-    Recursively build a nested Pydantic model from a dictionary.
-
-    Args:
-        sample: A sample dictionary representing a nested structure.
-        model_name: Name to give the created submodel.
-
-    Returns:
-        A dynamically created Pydantic submodel class.
-    """
-    sub_fields: Dict[str, tuple] = {}
-    for key, value in sample.items():
-        if isinstance(value, dict):
-            sub_model = infer_pydantic_model_from_dict(value, model_name=f"{model_name}_{key.capitalize()}")
-            sub_fields[key] = (sub_model, ...)
-        elif isinstance(value, list):
-            inner_type = type(value[0]) if value else Any
-            sub_fields[key] = (List[inner_type], ...)
-        else:
-            sub_fields[key] = (type(value), ...)
-    return create_model(model_name, **sub_fields)
-
-
-def infer_patito_model_from_pandas(
+def df_to_pydantic(
     df: "pd.DataFrame",
-    model_name: str = "AutoPatitoModel",
-    infer_constraints: bool = False,
-) -> Type["pt.Model"]:
+    model: Optional[Type[BaseModel]] = None,
+    model_name: Optional[str] = None,
+) -> List[BaseModel]:
     """
-    Infer a Patito model class from a pandas DataFrame.
-
-    Supports basic constraints like bounds, length, and uniqueness if enabled.
+    Convert a pandas DataFrame to a list of Pydantic model instances.
 
     Args:
-        df: A pandas DataFrame to infer the schema from.
-        model_name: Name of the generated Patito model class.
-        infer_constraints: Whether to add min/max/unique constraints.
+        df: pandas DataFrame to convert.
+        model: Optional Pydantic model class to use.
+        model_name: Optional name to generate the model if no model is passed.
 
     Returns:
-        A Patito model class matching the structure of the DataFrame.
+        List of Pydantic model instances, one per row.
     """
-    if not _has_pandas:
-        raise ImportError("Pandas is not installed. Try `pip install pandas`.")
-    if not _has_patito:
-        raise ImportError("Patito is not installed. Try `pip install patito`.")
+    if model is None:
+        model = infer_pydantic_model(df, model_name or "AutoPandasModel")
 
-    fields = {}
-
-    for name, dtype in df.dtypes.items():
-        nullable = df[name].isnull().any()
-        non_nulls = df[name].dropna()
-        sample_value = non_nulls.iloc[0] if not non_nulls.empty else None
-        kwargs = {}
-
-        if pd.api.types.is_integer_dtype(dtype):
-            typ = int
-            if infer_constraints and not non_nulls.empty:
-                kwargs["ge"] = int(non_nulls.min())
-                kwargs["le"] = int(non_nulls.max())
-        elif pd.api.types.is_float_dtype(dtype):
-            typ = float
-            if infer_constraints and not non_nulls.empty:
-                kwargs["ge"] = float(non_nulls.min())
-                kwargs["le"] = float(non_nulls.max())
-        elif pd.api.types.is_bool_dtype(dtype):
-            typ = bool
-        elif pd.api.types.is_datetime64_any_dtype(dtype):
-            typ = datetime.datetime
-        elif pd.api.types.is_object_dtype(dtype) and isinstance(sample_value, str):
-            typ = str
-            if infer_constraints and not non_nulls.empty:
-                lengths = non_nulls.str.len()
-                kwargs["min_length"] = int(lengths.min())
-                kwargs["max_length"] = int(lengths.max())
-        else:
-            typ = type(sample_value) if sample_value is not None else Any
-
-        if nullable:
-            typ = Optional[typ]
-
-        if infer_constraints and df[name].is_unique:
-            kwargs["unique"] = True
-
-        fields[name] = pt.Field(typ, **kwargs)
-
-    return type(model_name, (pt.Model,), fields)
+    dicts = df.to_dict(orient="records")
+    return [model(**row) for row in dicts]

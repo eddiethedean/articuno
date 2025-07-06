@@ -1,23 +1,18 @@
 """
-polars_infer.py
+Inference utilities for converting Polars DataFrames into Pydantic models.
 
-Provides functions to infer Pydantic or Patito models from Polars DataFrames.
-Supports nested structs, nullable types, and optional constraint inference for Patito models.
+Supports nested structs, lists, optional fields, and common data types.
 """
 
-from typing import Any, Dict, Optional, Type, List, Union
+from typing import Any, Dict, List, Optional, Type
+from pydantic import BaseModel, create_model
 import datetime
 
 try:
-    import polars as pl  # type: ignore
-    import patito as pt  # type: ignore
+    import polars as pl
     _has_polars = True
-    _has_patito = True
 except ImportError:
     _has_polars = False
-    _has_patito = False
-
-from pydantic import BaseModel, create_model
 
 
 def _is_polars_df(df: Any) -> bool:
@@ -33,12 +28,12 @@ def infer_pydantic_model(
     Infer a Pydantic model class from a Polars DataFrame.
 
     Args:
-        df: A Polars DataFrame to infer the schema from.
-        model_name: Name of the generated Pydantic model class.
-        _model_cache: Internal use. Caches nested struct models to avoid duplication.
+        df: Polars DataFrame to infer schema from.
+        model_name: Optional model class name.
+        _model_cache: Internal cache for nested struct models to avoid recursion.
 
     Returns:
-        A Pydantic model class that matches the structure of the input DataFrame.
+        A Pydantic model class dynamically created from DataFrame schema.
     """
     if not _has_polars:
         raise ImportError("Polars is not installed. Try `pip install polars`.")
@@ -47,6 +42,7 @@ def infer_pydantic_model(
         _model_cache = {}
 
     def wrap_optional(tp: Any, nullable: bool) -> Any:
+        from typing import Optional
         return Optional[tp] if nullable else tp
 
     def get_first_non_null(col: "pl.Series") -> Any:
@@ -119,72 +115,23 @@ def infer_pydantic_model(
     return create_model(model_name, **fields)
 
 
-def infer_patito_model(
+def df_to_pydantic(
     df: "pl.DataFrame",
-    model_name: str = "AutoPatitoModel",
-    infer_constraints: bool = False,
-) -> Type["pt.Model"]:
+    model: Optional[Type[BaseModel]] = None,
+    model_name: Optional[str] = None,
+) -> List[BaseModel]:
     """
-    Infer a Patito model class from a Polars DataFrame.
+    Convert a Polars DataFrame to a list of Pydantic model instances.
 
     Args:
-        df: A Polars DataFrame to infer the schema from.
-        model_name: Name of the generated Patito model class.
-        infer_constraints: Whether to automatically generate bounds, lengths, and uniqueness constraints.
+        df: Polars DataFrame to convert.
+        model: Optional Pydantic model class to use.
+        model_name: Optional name to generate the model if no model is passed.
 
     Returns:
-        A Patito model class that matches the DataFrame's structure.
+        List of Pydantic model instances, one per row.
     """
-    if not _has_polars:
-        raise ImportError("Polars is not installed. Try `pip install polars`.")
-    if not _has_patito:
-        raise ImportError("Patito is not installed. Try `pip install patito`.")
-
-    fields = {}
-
-    for name, dtype in df.schema.items():
-        col = df.get_column(name)
-        nullable = col.is_null().any()
-        kwargs = {}
-        non_nulls = col.drop_nulls()
-        sample_value = non_nulls[0] if len(non_nulls) else None
-
-        if dtype in {pl.Int8, pl.Int16, pl.Int32, pl.Int64,
-                     pl.UInt8, pl.UInt16, pl.UInt32, pl.UInt64}:
-            typ = int
-            if infer_constraints and len(non_nulls):
-                kwargs["ge"] = int(non_nulls.min())
-                kwargs["le"] = int(non_nulls.max())
-        elif dtype in {pl.Float32, pl.Float64}:
-            typ = float
-            if infer_constraints and len(non_nulls):
-                kwargs["ge"] = float(non_nulls.min())
-                kwargs["le"] = float(non_nulls.max())
-        elif dtype == pl.Boolean:
-            typ = bool
-        elif dtype == pl.Utf8:
-            typ = str
-            if infer_constraints and len(non_nulls):
-                lengths = non_nulls.str.len_chars()
-                kwargs["min_length"] = int(lengths.min())
-                kwargs["max_length"] = int(lengths.max())
-        elif dtype == pl.Date:
-            typ = datetime.date
-        elif dtype == pl.Datetime:
-            typ = datetime.datetime
-        elif dtype == pl.Duration:
-            typ = datetime.timedelta
-        elif dtype == pl.Null:
-            typ = type(None)
-        else:
-            typ = Any
-
-        if nullable:
-            typ = Optional[typ]
-
-        if infer_constraints and col.is_unique():
-            kwargs["unique"] = True
-
-        fields[name] = pt.Field(typ, **kwargs)
-
-    return type(model_name, (pt.Model,), fields)
+    if model is None:
+        model = infer_pydantic_model(df, model_name or "AutoPolarsModel")
+    # Convert Polars DataFrame to a list of dictionaries
+    return [model(**row) for row in df.to_dicts()]
