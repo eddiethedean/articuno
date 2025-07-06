@@ -1,22 +1,16 @@
 """
-Model inference utilities for converting Polars DataFrames into Pydantic or Patito models.
-
-This module provides tools to dynamically infer data validation models from `polars.DataFrame`
-structures, generating either `pydantic.BaseModel` or `patito.Model` representations.
-It is designed to simplify the transition between dataframes and structured models
-in data pipelines or FastAPI applications.
-
-Functions:
-- df_to_pydantic: Convert DataFrame rows into Pydantic model instances.
-- infer_pydantic_model: Generate a Pydantic model class from a DataFrame schema.
-- df_to_patito: Convert DataFrame rows into Patito model instances (if installed).
-- infer_patito_model: Generate a Patito model class from a DataFrame schema.
+Polars DataFrame model inference utilities for Pydantic and Patito.
 """
 
 from typing import Any, Dict, List, Optional, Type
 from pydantic import BaseModel, create_model
-import polars as pl
 import datetime
+
+try:
+    import polars as pl  # type: ignore
+    _has_polars = True
+except ImportError:
+    _has_polars = False
 
 try:
     import patito as pt  # type: ignore
@@ -25,75 +19,33 @@ except ImportError:
     _has_patito = False
 
 
-def df_to_pydantic(
-    df: pl.DataFrame,
-    model: Optional[Type[BaseModel]] = None,
-    model_name: Optional[str] = None,
-) -> List[BaseModel]:
-    """
-    Convert a Polars DataFrame into a list of Pydantic model instances.
-
-    Each row of the DataFrame is converted into an instance of a Pydantic model.
-    If no model is provided, a model is inferred from the DataFrame's schema.
-
-    Parameters
-    ----------
-    df : pl.DataFrame
-        The Polars DataFrame to convert.
-    model : Type[BaseModel], optional
-        A custom Pydantic model to use. If None, a model is inferred from the DataFrame.
-    model_name : str, optional
-        The name of the inferred model, used if `model` is None.
-
-    Returns
-    -------
-    List[BaseModel]
-        A list of Pydantic model instances populated from the DataFrame rows.
-    """
-    if model is None:
-        model = infer_pydantic_model(df, model_name=model_name or "AutoModel")
-    return [model(**row) for row in df.to_dicts()]
+def _is_polars_df(df: Any) -> bool:
+    return _has_polars and isinstance(df, pl.DataFrame)
 
 
 def infer_pydantic_model(
-    df: pl.DataFrame,
-    model_name: str = "AutoModel",
+    df: "pl.DataFrame",
+    model_name: str = "AutoPolarsModel",
     _model_cache: Optional[Dict[str, Type[BaseModel]]] = None,
 ) -> Type[BaseModel]:
-    """
-    Infer a Pydantic model class from a Polars DataFrame.
+    if not _has_polars:
+        raise ImportError("Polars is not installed. Try `pip install polars`.")
 
-    Handles nested struct and list types, as well as optional/null detection.
-
-    Parameters
-    ----------
-    df : pl.DataFrame
-        The input DataFrame to analyze.
-    model_name : str
-        The name of the generated Pydantic model class.
-    _model_cache : dict, optional
-        Internal cache used to avoid re-generating nested struct models.
-
-    Returns
-    -------
-    Type[BaseModel]
-        A dynamically created Pydantic model class that matches the DataFrame schema.
-    """
     if _model_cache is None:
         _model_cache = {}
 
     def wrap_optional(tp: Any, nullable: bool) -> Any:
         return Optional[tp] if nullable else tp
 
-    def get_first_non_null(col: pl.Series) -> Any:
+    def get_first_non_null(col: "pl.Series") -> Any:
         for val in col:
             if val is not None:
                 return val
         return None
 
     def resolve_dtype(
-        dtype: pl.DataType,
-        column_data: Optional[pl.Series] = None,
+        dtype: Any,
+        column_data: Optional["pl.Series"] = None,
         prefix: str = "",
     ) -> Any:
         nullable = column_data is not None and column_data.is_null().any()
@@ -155,71 +107,12 @@ def infer_pydantic_model(
     return create_model(model_name, **fields)
 
 
-def df_to_patito(
-    df: pl.DataFrame,
-    model: Optional[Type["pt.Model"]] = None,
-    model_name: Optional[str] = None,
-) -> List["pt.Model"]:
-    """
-    Convert a Polars DataFrame into a list of Patito model instances.
-
-    Each row of the DataFrame is converted into an instance of a Patito model.
-    If no model is provided, a Patito model is inferred from the DataFrame's schema.
-
-    Parameters
-    ----------
-    df : pl.DataFrame
-        The DataFrame to convert.
-    model : Type[pt.Model], optional
-        A Patito model to use. If None, a model is inferred automatically.
-    model_name : str, optional
-        The name to use for the inferred model class.
-
-    Returns
-    -------
-    List[pt.Model]
-        A list of Patito model instances representing the DataFrame rows.
-
-    Raises
-    ------
-    ImportError
-        If Patito is not installed.
-    """
-    if not _has_patito:
-        raise ImportError("Patito is not installed. Try `pip install patito`.")
-
-    if model is None:
-        model = infer_patito_model(df, model_name=model_name or "AutoPatitoModel")
-
-    return [model(**row) for row in df.to_dicts()]
-
-
 def infer_patito_model(
-    df: pl.DataFrame,
+    df: "pl.DataFrame",
     model_name: str = "AutoPatitoModel",
 ) -> Type["pt.Model"]:
-    """
-    Infer a Patito model class from a Polars DataFrame schema.
-
-    Only flat columns are supported (nested structs are not currently handled).
-
-    Parameters
-    ----------
-    df : pl.DataFrame
-        The DataFrame to analyze.
-    model_name : str
-        The name of the generated Patito model class.
-
-    Returns
-    -------
-    Type[pt.Model]
-        A dynamically created Patito model class that mirrors the DataFrame schema.
-
-    Raises
-    ------
-    ImportError
-        If Patito is not installed.
-    """
+    if not _has_polars:
+        raise ImportError("Polars is not installed. Try `pip install polars`.")
     if not _has_patito:
         raise ImportError("Patito is not installed. Try `pip install patito`.")
 
