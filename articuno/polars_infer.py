@@ -1,5 +1,7 @@
 """
-Polars DataFrame model inference utilities for Pydantic and Patito.
+Inference utilities for converting Polars DataFrames into Pydantic models.
+
+Supports nested structs, lists, optional fields, and common data types.
 """
 
 from typing import Any, Dict, List, Optional, Type
@@ -7,16 +9,10 @@ from pydantic import BaseModel, create_model
 import datetime
 
 try:
-    import polars as pl  # type: ignore
+    import polars as pl
     _has_polars = True
 except ImportError:
     _has_polars = False
-
-try:
-    import patito as pt  # type: ignore
-    _has_patito = True
-except ImportError:
-    _has_patito = False
 
 
 def _is_polars_df(df: Any) -> bool:
@@ -28,6 +24,17 @@ def infer_pydantic_model(
     model_name: str = "AutoPolarsModel",
     _model_cache: Optional[Dict[str, Type[BaseModel]]] = None,
 ) -> Type[BaseModel]:
+    """
+    Infer a Pydantic model class from a Polars DataFrame.
+
+    Args:
+        df: Polars DataFrame to infer schema from.
+        model_name: Optional model class name.
+        _model_cache: Internal cache for nested struct models to avoid recursion.
+
+    Returns:
+        A Pydantic model class dynamically created from DataFrame schema.
+    """
     if not _has_polars:
         raise ImportError("Polars is not installed. Try `pip install polars`.")
 
@@ -35,6 +42,7 @@ def infer_pydantic_model(
         _model_cache = {}
 
     def wrap_optional(tp: Any, nullable: bool) -> Any:
+        from typing import Optional
         return Optional[tp] if nullable else tp
 
     def get_first_non_null(col: "pl.Series") -> Any:
@@ -107,44 +115,23 @@ def infer_pydantic_model(
     return create_model(model_name, **fields)
 
 
-def infer_patito_model(
+def df_to_pydantic(
     df: "pl.DataFrame",
-    model_name: str = "AutoPatitoModel",
-) -> Type["pt.Model"]:
-    if not _has_polars:
-        raise ImportError("Polars is not installed. Try `pip install polars`.")
-    if not _has_patito:
-        raise ImportError("Patito is not installed. Try `pip install patito`.")
+    model: Optional[Type[BaseModel]] = None,
+    model_name: Optional[str] = None,
+) -> List[BaseModel]:
+    """
+    Convert a Polars DataFrame to a list of Pydantic model instances.
 
-    fields = {}
+    Args:
+        df: Polars DataFrame to convert.
+        model: Optional Pydantic model class to use.
+        model_name: Optional name to generate the model if no model is passed.
 
-    for name, dtype in df.schema.items():
-        col = df.get_column(name)
-        nullable = col.is_null().any()
-
-        if dtype in {pl.Int8, pl.Int16, pl.Int32, pl.Int64,
-                     pl.UInt8, pl.UInt16, pl.UInt32, pl.UInt64}:
-            typ = int
-        elif dtype in {pl.Float32, pl.Float64}:
-            typ = float
-        elif dtype == pl.Boolean:
-            typ = bool
-        elif dtype == pl.Utf8:
-            typ = str
-        elif dtype == pl.Date:
-            typ = datetime.date
-        elif dtype == pl.Datetime:
-            typ = datetime.datetime
-        elif dtype == pl.Duration:
-            typ = datetime.timedelta
-        elif dtype == pl.Null:
-            typ = type(None)
-        else:
-            typ = Any
-
-        if nullable:
-            typ = Optional[typ]
-
-        fields[name] = pt.Field(typ)
-
-    return type(model_name, (pt.Model,), fields)
+    Returns:
+        List of Pydantic model instances, one per row.
+    """
+    if model is None:
+        model = infer_pydantic_model(df, model_name or "AutoPolarsModel")
+    # Convert Polars DataFrame to a list of dictionaries
+    return [model(**row) for row in df.to_dicts()]

@@ -9,7 +9,6 @@ Convert Polars or Pandas DataFrames to Pydantic models with schema inference —
 - Infer Pydantic models dynamically from Polars or Pandas DataFrames  
 - Support for nested structs, optional fields, and common data types  
 - Generate clean Python model code using [datamodel-code-generator](https://github.com/koxudaxi/datamodel-code-generator)  
-- Optional support for Patito models  
 - Lightweight, dependency-flexible design  
 
 ---
@@ -36,16 +35,10 @@ Add optional dependencies as needed:
   pip install articuno[pandas]
   ```
 
-- Patito support:
-
-  ```bash
-  pip install articuno[patito]
-  ```
-
 Or install all extras:
 
 ```bash
-pip install articuno[polars,pandas,patito]
+pip install articuno[polars,pandas]
 ```
 
 ---
@@ -116,27 +109,6 @@ class AutoPolarsModel(BaseModel):
     id: int
     name: str
     score: float
-```
-
----
-
-## 🦜 Optional Support for Patito Models
-
-If you use Patito, Articuno can infer Patito models as well:
-
-```python
-from articuno.models import df_to_patito
-import polars as pl
-
-df = pl.DataFrame({"a": [1, 2, 3]})
-patito_models = df_to_patito(df)
-print(patito_models[0])
-```
-
-**Output:**
-
-```
-a=1
 ```
 
 ---

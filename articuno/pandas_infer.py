@@ -1,11 +1,8 @@
 """
-Pandas model inference utilities for generating Pydantic or Patito models.
-
-This module provides functions to analyze pandas.DataFrames and construct equivalent
-Pydantic or Patito models. Nested dictionaries are supported recursively as nested models.
+Pandas DataFrame model inference utilities for converting pandas DataFrames into Pydantic models.
 """
 
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Type
 from pydantic import BaseModel, create_model
 import datetime
 
@@ -15,167 +12,85 @@ try:
 except ImportError:
     _has_pandas = False
 
-try:
-    import patito as pt  # type: ignore
-    _has_patito = True
-except ImportError:
-    _has_patito = False
-
 
 def _is_pandas_df(df: Any) -> bool:
     return _has_pandas and isinstance(df, pd.DataFrame)
 
 
-def infer_pydantic_model_from_pandas(
+def infer_pydantic_model(
     df: "pd.DataFrame",
     model_name: str = "AutoPandasModel",
-    _model_cache: Optional[Dict[str, Type[BaseModel]]] = None,
 ) -> Type[BaseModel]:
     """
-    Infer a Pydantic model class from a pandas DataFrame.
+    Infer a Pydantic model class from a pandas DataFrame schema.
 
-    Recursively detects nested dictionaries and lists of dictionaries,
-    and generates nested model classes.
+    This function infers field types based on the DataFrame's dtypes and sample
+    non-null values. Nested dict columns are typed as `dict` without further inference.
 
-    Parameters
-    ----------
-    df : pd.DataFrame
-        The pandas DataFrame to inspect.
-    model_name : str
-        The name of the root model class.
-    _model_cache : dict, optional
-        Internal cache to avoid regenerating identical nested models.
+    Args:
+        df: pandas DataFrame to infer the model from.
+        model_name: Optional model class name.
 
-    Returns
-    -------
-    Type[BaseModel]
-        A dynamically generated Pydantic model class.
+    Returns:
+        A dynamically created Pydantic model class.
     """
     if not _has_pandas:
         raise ImportError("Pandas is not installed. Try `pip install pandas`.")
-
-    if _model_cache is None:
-        _model_cache = {}
-
-    def wrap_optional(tp: Any, nullable: bool) -> Any:
-        return Optional[tp] if nullable else tp
-
-    def resolve_dtype(
-        series: pd.Series,
-        prefix: str = ""
-    ) -> Any:
-        nullable = series.isnull().any()
-        non_nulls = series.dropna()
-        sample = non_nulls.iloc[0] if not non_nulls.empty else None
-
-        # Handle nested dict
-        if isinstance(sample, dict):
-            struct_key = f"{prefix}{series.name}"
-            if struct_key in _model_cache:
-                struct_model = _model_cache[struct_key]
-            else:
-                nested_fields = {}
-                for k, v in sample.items():
-                    field_type, default = resolve_dtype(
-                        pd.Series([d.get(k) for d in series.dropna() if isinstance(d, dict)]),
-                        prefix=f"{prefix}{k}."
-                    )
-                    nested_fields[k] = (field_type, default if default is not None else ...)
-                struct_model = create_model(f"{model_name}_{len(_model_cache)}_Nested", **nested_fields)
-                _model_cache[struct_key] = struct_model
-            return wrap_optional(struct_model, nullable), sample
-
-        # Handle list of dicts
-        if isinstance(sample, list) and sample and isinstance(sample[0], dict):
-            # assume homogeneous list of dicts
-            nested_series = pd.Series([sample[0] for sample in non_nulls if sample])
-            nested_type, _ = resolve_dtype(nested_series, prefix=f"{prefix}item.")
-            return wrap_optional(List[nested_type], nullable), sample
-
-        # Primitive type mapping
-        if pd.api.types.is_integer_dtype(series):
-            typ = int
-        elif pd.api.types.is_float_dtype(series):
-            typ = float
-        elif pd.api.types.is_bool_dtype(series):
-            typ = bool
-        elif pd.api.types.is_datetime64_any_dtype(series):
-            typ = datetime.datetime
-        elif isinstance(sample, str):
-            typ = str
-        elif isinstance(sample, list):
-            inner_type = type(sample[0]) if sample else Any
-            typ = List[inner_type]
-        elif sample is not None:
-            typ = type(sample)
-        else:
-            typ = Any
-
-        return wrap_optional(typ, nullable), sample
 
     fields: Dict[str, tuple] = {}
 
-    for name in df.columns:
-        series = df[name]
-        field_type, default = resolve_dtype(series)
-        fields[name] = (field_type, default if default is not None else ...)
+    for name, dtype in df.dtypes.items():
+        nullable = df[name].isnull().any()
+        non_nulls = df[name].dropna()
+        sample_value = non_nulls.iloc[0] if not non_nulls.empty else None
 
-    return create_model(model_name, **fields)
-
-
-def infer_patito_model_from_pandas(
-    df: "pd.DataFrame",
-    model_name: str = "AutoPatitoModel",
-) -> Type["pt.Model"]:
-    """
-    Infer a Patito model class from a pandas DataFrame.
-
-    Nested dictionaries are not supported in Patito inference.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        The pandas DataFrame to inspect.
-    model_name : str
-        Name of the generated Patito model.
-
-    Returns
-    -------
-    Type[pt.Model]
-        A dynamically generated Patito model class.
-    """
-    if not _has_pandas:
-        raise ImportError("Pandas is not installed. Try `pip install pandas`.")
-    if not _has_patito:
-        raise ImportError("Patito is not installed. Try `pip install patito`.")
-
-    fields = {}
-
-    for name, series in df.items():
-        nullable = series.isnull().any()
-        sample = series.dropna().iloc[0] if not series.dropna().empty else None
-
-        if pd.api.types.is_integer_dtype(series):
+        if pd.api.types.is_integer_dtype(dtype):
             typ = int
-        elif pd.api.types.is_float_dtype(series):
+        elif pd.api.types.is_float_dtype(dtype):
             typ = float
-        elif pd.api.types.is_bool_dtype(series):
+        elif pd.api.types.is_bool_dtype(dtype):
             typ = bool
-        elif pd.api.types.is_datetime64_any_dtype(series):
+        elif pd.api.types.is_datetime64_any_dtype(dtype):
             typ = datetime.datetime
-        elif isinstance(sample, str):
-            typ = str
-        elif isinstance(sample, list):
-            inner = type(sample[0]) if sample else Any
-            typ = List[inner]
-        elif sample is not None:
-            typ = type(sample)
+        elif pd.api.types.is_object_dtype(dtype):
+            # Treat nested dicts and other objects as plain dict or type of sample
+            if isinstance(sample_value, dict):
+                typ = dict
+            elif isinstance(sample_value, list):
+                typ = List[Any]
+            elif isinstance(sample_value, str):
+                typ = str
+            else:
+                typ = type(sample_value) if sample_value is not None else Any
         else:
             typ = Any
 
         if nullable:
             typ = Optional[typ]
 
-        fields[name] = pt.Field(typ)
+        fields[name] = (typ, sample_value if sample_value is not None else ...)
 
-    return type(model_name, (pt.Model,), fields)
+    return create_model(model_name, **fields)
+
+
+def df_to_pydantic(
+    df: "pd.DataFrame",
+    model: Optional[Type[BaseModel]] = None,
+    model_name: Optional[str] = None,
+) -> List[BaseModel]:
+    """
+    Convert a pandas DataFrame to a list of Pydantic model instances.
+
+    Args:
+        df: pandas DataFrame to convert.
+        model: Optional Pydantic model class to use.
+        model_name: Optional name to generate the model if no model is passed.
+
+    Returns:
+        List of Pydantic model instances, one per row.
+    """
+    if model is None:
+        model = infer_pydantic_model(df, model_name or "AutoPandasModel")
+
+    dicts = df.to_dict(orient="records")
+    return [model(**row) for row in dicts]
