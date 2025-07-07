@@ -1,18 +1,12 @@
 """
-Main inference interface for converting Polars or Pandas DataFrames into Pydantic models.
+Unified inference utilities for Articuno.
 
-This module provides the primary `df_to_pydantic` function which infers Pydantic models
-from the given DataFrame and instantiates model instances for each row.
+This module provides high-level functions to infer Pydantic models from either
+pandas or polars DataFrames, with optional support for nested columns and force_optional.
 """
 
-from typing import List, Optional, Type, Union
+from typing import Any, List, Optional, Type, Union
 from pydantic import BaseModel
-
-try:
-    import polars as pl
-    _has_polars = True
-except ImportError:
-    _has_polars = False
 
 try:
     import pandas as pd
@@ -20,36 +14,66 @@ try:
 except ImportError:
     _has_pandas = False
 
-from .polars_infer import _is_polars_df, infer_pydantic_model as infer_polars_model
-from .pandas_infer import _is_pandas_df, infer_pydantic_model as infer_pandas_model
+try:
+    import polars as pl
+    _has_polars = True
+except ImportError:
+    _has_polars = False
+
+from articuno.pandas_infer import (
+    _is_pandas_df,
+    infer_pydantic_model as infer_pandas_model,
+)
+from articuno.polars_infer import (
+    _is_polars_df,
+    infer_pydantic_model as infer_polars_model,
+)
+
+
+def infer_pydantic_model(
+    df: Union["pd.DataFrame", "pl.DataFrame"],
+    model_name: str = "AutoModel",
+    force_optional: bool = False,
+) -> Type[BaseModel]:
+    """
+    Infer a Pydantic model class from either a pandas or polars DataFrame.
+
+    Args:
+        df: Input DataFrame (pandas or polars).
+        model_name: Optional name for the generated model class.
+        force_optional: If True, force all fields (including nested) to be Optional.
+
+    Returns:
+        A dynamically created Pydantic model class.
+    """
+    if _has_pandas and _is_pandas_df(df):
+        return infer_pandas_model(df, model_name=model_name, force_optional=force_optional)
+    elif _has_polars and _is_polars_df(df):
+        return infer_polars_model(df, model_name=model_name, force_optional=force_optional)
+    else:
+        raise TypeError("Expected a pandas or polars DataFrame.")
 
 
 def df_to_pydantic(
-    df: Union["pl.DataFrame", "pd.DataFrame"],
+    df: Union["pd.DataFrame", "pl.DataFrame"],
     model: Optional[Type[BaseModel]] = None,
     model_name: Optional[str] = None,
+    force_optional: bool = False,
 ) -> List[BaseModel]:
     """
-    Infer a Pydantic model class from a Polars or Pandas DataFrame and return instances for each row.
+    Convert a DataFrame into a list of Pydantic model instances.
 
     Args:
-        df: A Polars or Pandas DataFrame to infer the schema from.
-        model: Optional. A pre-defined Pydantic model class to use for instantiation.
-        model_name: Optional. Name of the model class to generate if `model` is None.
+        df: Input DataFrame (pandas or polars).
+        model: Optional pre-defined Pydantic model class.
+        model_name: Name for auto-inferred model if no model is provided.
+        force_optional: If True, force all fields in the inferred model to be Optional.
 
     Returns:
-        List of Pydantic model instances corresponding to DataFrame rows.
-
-    Raises:
-        TypeError: If the input is not a Polars or Pandas DataFrame.
+        List of instantiated Pydantic models based on DataFrame rows.
     """
     if model is None:
-        if _has_pandas and _is_pandas_df(df):
-            model = infer_pandas_model(df, model_name or "AutoPandasModel")
-        elif _has_polars and _is_polars_df(df):
-            model = infer_polars_model(df, model_name or "AutoPolarsModel")
-        else:
-            raise TypeError("Expected a pandas or polars DataFrame.")
+        model = infer_pydantic_model(df, model_name or "AutoModel", force_optional=force_optional)
 
     dicts = df.to_dict(orient="records") if _has_pandas and _is_pandas_df(df) else df.to_dicts()
     return [model(**row) for row in dicts]

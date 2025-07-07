@@ -6,10 +6,12 @@ Convert Polars or Pandas DataFrames to Pydantic models with schema inference —
 
 ## ✨ Features
 
-- Infer Pydantic models dynamically from Polars or Pandas DataFrames  
-- Support for nested structs, optional fields, and common data types  
-- Generate clean Python model code using [datamodel-code-generator](https://github.com/koxudaxi/datamodel-code-generator)  
-- Lightweight, dependency-flexible design  
+- Infer Pydantic models dynamically from Polars or Pandas DataFrames
+- Supports nested structs, optional fields, and common data types
+- Supports **PyArrow‑backed Pandas columns** (e.g., `int64[pyarrow]`, `string[pyarrow]`)
+- Optional **force_optional** flag to make all fields optional regardless of data
+- Generate clean Python model code using [datamodel‑code‑generator](https://github.com/koxudaxi/datamodel-code-generator)
+- Lightweight, dependency‑flexible design
 
 ---
 
@@ -29,7 +31,7 @@ Add optional dependencies as needed:
   pip install articuno[polars]
   ```
 
-- Pandas support:
+- Pandas support (with optional PyArrow support):
 
   ```bash
   pip install articuno[pandas]
@@ -67,12 +69,21 @@ print(models[0])
 id=1 name='Alice' score=95.5
 ```
 
-You can also infer a model class without creating instances:
+---
+
+### 🌟 Using PyArrow‑backed Pandas columns
 
 ```python
-from articuno.models import infer_pydantic_model
+import pandas as pd
 
-Model = infer_pydantic_model(df, model_name="MyModel")
+df = pd.DataFrame({
+    "id": pd.Series([1, 2, 3], dtype="int64[pyarrow]"),
+    "name": pd.Series(["Alice", "Bob", "Charlie"], dtype="string[pyarrow]")
+})
+
+from articuno import infer_pydantic_model
+
+Model = infer_pydantic_model(df, model_name="ArrowUser")
 print(Model.schema_json(indent=2))
 ```
 
@@ -80,16 +91,25 @@ print(Model.schema_json(indent=2))
 
 ```json
 {
-  "title": "MyModel",
+  "title": "ArrowUser",
   "type": "object",
   "properties": {
     "id": { "title": "Id", "type": "integer" },
-    "name": { "title": "Name", "type": "string" },
-    "score": { "title": "Score", "type": "number" }
+    "name": { "title": "Name", "type": "string" }
   },
-  "required": ["id", "name", "score"]
+  "required": ["id", "name"]
 }
 ```
+
+---
+
+### 🔥 Force all fields to be optional
+
+```python
+Model = infer_pydantic_model(df, model_name="MyOptionalModel", force_optional=True)
+```
+
+---
 
 ### 🧾 Generate Python class code from a Pydantic model
 
@@ -105,10 +125,9 @@ print(code)
 ```python
 from pydantic import BaseModel
 
-class AutoPolarsModel(BaseModel):
-    id: int
-    name: str
-    score: float
+class ArrowUser(BaseModel):
+    id: Optional[int] = None
+    name: Optional[str] = None
 ```
 
 ---
@@ -116,11 +135,11 @@ class AutoPolarsModel(BaseModel):
 ## 📜 Patito vs Articuno
 
 | Feature                       | 🦜 Patito                   | ❄️ Articuno                      |
-|------------------------------|-----------------------------|---------------------------------|
+|-------------------------------|-----------------------------|---------------------------------|
 | Polars–Pydantic bridge        | ✅ Declarative schema        | ✅ Dynamic inference             |
 | Validation constraints        | ✅ Unique, bounds            | ⚠️ Basic types, nullables        |
 | Nested Structs                | ❌ Not supported            | ✅ Fully recursive              |
-| Code generation               | ❌                          | ✅ via datamodel-code-gen        |
+| Code generation               | ❌                          | ✅ via datamodel‑code‑gen        |
 | Example/mock data             | ✅ `.examples`               | ❌                              |
 | Direct Pandas/Polars support  | ❌ Indirect via dicts        | ✅ Native support with inference |
 
@@ -132,18 +151,34 @@ Articuno excels at dynamic schema inference, nested model generation, and code e
 
 ## ⚙️ Supported Type Mappings
 
-| Polars Type          | Pandas Type          | Pydantic Type           |
-|---------------------|---------------------|------------------------|
-| `pl.Int*`, `pl.UInt*` | `int64`, `int32`, `Int64` (nullable int) | `int`                  |
-| `pl.Float*`           | `float64`, `float32`  | `float`                |
-| `pl.Utf8`             | `object` (string)     | `str`                  |
-| `pl.Boolean`          | `bool`, `boolean` (nullable bool) | `bool`                 |
-| `pl.Date`             | `datetime64[ns]` (date only) | `datetime.date`        |
-| `pl.Datetime`         | `datetime64[ns]` (timestamp) | `datetime.datetime`    |
-| `pl.Duration`         | `timedelta64[ns]`     | `datetime.timedelta`   |
-| `pl.List`             | `list`, `object` with lists | `List[...]`            |
-| `pl.Struct`           | `dict`, `object` with nested dicts | Nested Pydantic model  |
-| `pl.Null`             | `NaN`, `None` (nullable fields) | `Optional[...]`         |
+| Polars Type          | Pandas Type (incl. PyArrow)                            | Pydantic Type           |
+|----------------------|--------------------------------------------------------|------------------------|
+| `pl.Int*`, `pl.UInt*` | `int64`, `int32`, `Int64` (nullable int), `int64[pyarrow]`, `int32[pyarrow]` | `int` |
+| `pl.Float*`           | `float64`, `float32`, `float64[pyarrow]`, `float32[pyarrow]` | `float` |
+| `pl.Utf8`             | `object` (string), `string[pyarrow]`                  | `str`                  |
+| `pl.Boolean`          | `bool`, `boolean`, `bool[pyarrow]`                   | `bool`                 |
+| `pl.Date`             | `datetime64[ns]` (date only)                         | `datetime.date`        |
+| `pl.Datetime`         | `datetime64[ns]` (timestamp)                         | `datetime.datetime`    |
+| `pl.Duration`         | `timedelta64[ns]`                                    | `datetime.timedelta`   |
+| `pl.List`             | `list`, `object` with lists                          | `List[...]`            |
+| `pl.Struct`           | `dict`, `object` with nested dicts                   | Nested Pydantic model  |
+| `pl.Null`             | `NaN`, `None` (nullable fields)                      | `Optional[...]`        |
+
+---
+
+## ⚡ Force Optional Mode
+
+If you want to enforce that **all fields (top-level and nested) are optional**, use:
+
+```python
+Model = infer_pydantic_model(df, force_optional=True)
+```
+
+Or:
+
+```python
+models = df_to_pydantic(df, force_optional=True)
+```
 
 ---
 
@@ -169,6 +204,7 @@ pytest
 - [Datamodel Code Generator](https://github.com/koxudaxi/datamodel-code-generator)  
 - [Polars](https://www.pola.rs/)  
 - [Pandas](https://pandas.pydata.org/)  
+- [PyArrow](https://arrow.apache.org/docs/python/pandas.html)  
 
 ---
 
