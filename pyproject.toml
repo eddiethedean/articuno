@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "articuno"
-version = "0.6.1"
+version = "0.6.3"
 description = "Convert Polars or Pandas DataFrames to lists of Pydantic models with schema inference"
 authors = [{ name="Odos Matthews", email="odosmatthews@gmail.com" }]
 readme = "README.md"
@@ -22,6 +22,9 @@ pandas = [
     "pandas>=1.3"
 ]
 dev = [
+    "polars",
+    "pandas",
+    "pyarrow",
     "pytest>=7.0",
     "build",
     "twine"
