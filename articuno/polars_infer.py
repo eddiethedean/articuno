@@ -5,19 +5,10 @@ Polars DataFrame model inference utilities for converting Polars DataFrames into
 from typing import Any, Dict, List, Optional, Type
 from pydantic import BaseModel, create_model
 import datetime
-
-try:
-    import polars as pl  # type: ignore
-    _has_polars = True
-except ImportError:
-    _has_polars = False
+import polars as pl
 
 
-def _is_polars_df(df: Any) -> bool:
-    return _has_polars and isinstance(df, pl.DataFrame)
-
-
-def _infer_struct_model(dtype: Any, column_data: Optional["pl.Series"], model_name: str, model_cache: Dict[str, Type[BaseModel]], force_optional: bool) -> Any:
+def _infer_struct_model(dtype: Any, column_data: Optional[pl.Series], model_name: str, model_cache: Dict[str, Type[BaseModel]], force_optional: bool) -> Any:
     """
     Recursively infer a nested Pydantic model from a Polars Struct dtype.
 
@@ -110,7 +101,7 @@ def _resolve_dtype(dtype: Any, column_data: Optional["pl.Series"], model_name: s
 
 
 def infer_pydantic_model(
-    df: "pl.DataFrame",
+    df: pl.DataFrame,
     model_name: str = "AutoPolarsModel",
     force_optional: bool = False,
 ) -> Type[BaseModel]:
@@ -125,8 +116,6 @@ def infer_pydantic_model(
     Returns:
         A dynamically created Pydantic model class.
     """
-    if not _has_polars:
-        raise ImportError("Polars is not installed. Try `pip install polars`.")
 
     model_cache: Dict[str, Type[BaseModel]] = {}
     fields: Dict[str, tuple] = {}

@@ -1,98 +1,72 @@
 """
-Pandas DataFrame model inference utilities for converting pandas DataFrames into Pydantic models,
-with explicit support for PyArrow extension dtypes when available.
+Pandas DataFrame model inference utilities for Articuno.
+
+Provides functions to convert pandas DataFrames into Pydantic models,
+with explicit support for PyArrow extension dtypes when available,
+and nested dict columns using `dict_model._infer_dict_model`.
 """
 
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Tuple, Type
 from pydantic import BaseModel, create_model
 import datetime
+import pandas as pd
 
-try:
-    import pandas as pd  # type: ignore
-    _has_pandas = True
-except ImportError:
-    _has_pandas = False
-
-try:
-    import pyarrow as pa  # type: ignore
-    _has_pyarrow = True
-except ImportError:
-    _has_pyarrow = False
+# Nested dict model inference logic
+from articuno.dict_model import _infer_dict_model
 
 
-def _is_pandas_df(df: Any) -> bool:
-    return _has_pandas and isinstance(df, pd.DataFrame)
-
-
-def _infer_dict_model(samples: List[dict], field_name: str, force_optional: bool) -> Any:
+def is_pyarrow_available() -> bool:
     """
-    Merge keys from multiple sample dicts to create a nested Pydantic model,
-    optionally forcing all fields to be optional.
+    Check if PyArrow is installed and importable.
 
-    Args:
-        samples: List of dict samples from the DataFrame column.
-        field_name: Name of the parent column, used to name the nested model.
-        force_optional: If True, force all nested fields to be Optional.
-
-    Returns:
-        A dynamically created nested Pydantic model.
+    Returns
+    -------
+    bool
+        True if PyArrow can be imported, False otherwise.
     """
-    merged_keys = set()
-    for sample in samples:
-        merged_keys.update(sample.keys())
-
-    fields = {}
-    for key in merged_keys:
-        always_present = all(key in sample for sample in samples)
-        has_null = any(key in sample and sample[key] is None for sample in samples)
-
-        value_sample = next((sample[key] for sample in samples if key in sample and sample[key] is not None), None)
-
-        if isinstance(value_sample, int):
-            typ = int
-        elif isinstance(value_sample, float):
-            typ = float
-        elif isinstance(value_sample, str):
-            typ = str
-        elif isinstance(value_sample, bool):
-            typ = bool
-        elif isinstance(value_sample, dict):
-            typ = dict
-        elif isinstance(value_sample, list):
-            typ = List[Any]
-        else:
-            typ = Any
-
-        if force_optional or not always_present or has_null:
-            typ = Optional[typ]
-            default = None
-        else:
-            default = ...
-
-        fields[key] = (typ, default)
-
-    return create_model(f"{field_name}_NestedModel", **fields)
+    try:
+        import pyarrow  # type: ignore
+        return True
+    except ImportError:
+        return False
 
 
-def _infer_type_from_series(series: pd.Series, col_name: str, force_optional: bool, sample_size: int = 100) -> Any:
+def _infer_type_from_series(
+    series: pd.Series,
+    col_name: str,
+    force_optional: bool,
+    sample_size: int = 100,
+) -> Tuple[Any, Any]:
     """
-    Infer Python/Pydantic type for a pandas Series, with PyArrow dtype support.
+    Infer Python and Pydantic type for a pandas Series, supporting PyArrow dtypes.
 
-    Args:
-        series: pandas Series to analyze.
-        col_name: Column name (used for nested model naming).
-        force_optional: If True, force all columns to be Optional.
-        sample_size: Number of samples to inspect for object columns.
+    Parameters
+    ----------
+    series : pd.Series
+        Series to analyze.
+    col_name : str
+        Column name (used for nested model naming).
+    force_optional : bool
+        If True, all fields become Optional.
+    sample_size : int
+        Number of samples for object dtype inference.
 
-    Returns:
-        Tuple of inferred type and default value.
+    Returns
+    -------
+    typ : Any
+        Inferred Python type for the field.
+    default : Any
+        Default value (None or ...) for the Pydantic field.
     """
+    # Determine nullability
     nullable = series.isnull().any()
-    non_nulls = series.dropna()
-    samples = non_nulls.head(sample_size).tolist()
-    sample_value = samples[0] if samples else None
+    non_null = series.dropna()
+    samples = non_null.head(sample_size).tolist()
+    sample_val = samples[0] if samples else None
 
-    if _has_pyarrow and hasattr(series.dtype, "arrow_dtype"):
+    # PyArrow-backed checks
+    if is_pyarrow_available() and hasattr(series.dtype, "arrow_dtype"):
+        import pyarrow as pa  # type: ignore
         arrow_dtype = series.dtype.arrow_dtype
         if pa.types.is_integer(arrow_dtype):
             typ = int
@@ -113,21 +87,24 @@ def _infer_type_from_series(series: pd.Series, col_name: str, force_optional: bo
     elif pd.api.types.is_datetime64_any_dtype(series.dtype):
         typ = datetime.datetime
     elif pd.api.types.is_object_dtype(series.dtype):
+        # Nested dict
         if all(isinstance(x, dict) for x in samples if x is not None):
             typ = _infer_dict_model(samples, col_name, force_optional=force_optional)
-        elif isinstance(sample_value, str):
-            typ = str
-        elif isinstance(sample_value, list):
+        # List
+        elif isinstance(sample_val, list):
             typ = List[Any]
-        elif sample_value is not None:
-            typ = type(sample_value)
+        # String
+        elif isinstance(sample_val, str):
+            typ = str
         else:
             typ = Any
     else:
         typ = Any
 
+    # Assign default and optional
     if force_optional or nullable:
-        typ = Optional[typ]
+        from typing import Optional as _Opt
+        typ = _Opt[typ]
         default = None
     else:
         default = ...
@@ -136,29 +113,33 @@ def _infer_type_from_series(series: pd.Series, col_name: str, force_optional: bo
 
 
 def infer_pydantic_model(
-    df: "pd.DataFrame",
+    df: pd.DataFrame,
     model_name: str = "AutoPandasModel",
     force_optional: bool = False,
 ) -> Type[BaseModel]:
     """
     Infer a Pydantic model class from a pandas DataFrame schema, supporting PyArrow dtypes.
 
-    Args:
-        df: pandas DataFrame to infer the model from.
-        model_name: Optional model class name.
-        force_optional: If True, force all fields in the model to be Optional.
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame to infer model from.
+    model_name : str, optional
+        Desired model class name.
+    force_optional : bool, optional
+        If True, force all fields Optional.
 
-    Returns:
-        A dynamically created Pydantic model class.
+    Returns
+    -------
+    Type[BaseModel]
+        Dynamically created Pydantic model class.
     """
-    if not _has_pandas:
-        raise ImportError("Pandas is not installed. Try `pip install pandas`.")
-
     fields: Dict[str, tuple] = {}
-
-    for col_name in df.columns:
-        series = df[col_name]
-        field_type, default = _infer_type_from_series(series, col_name, force_optional=force_optional, sample_size=100)
-        fields[col_name] = (field_type, default)
+    for col in df.columns:
+        series = df[col]
+        typ, default = _infer_type_from_series(
+            series, col, force_optional=force_optional, sample_size=100
+        )
+        fields[col] = (typ, default)
 
     return create_model(model_name, **fields)
