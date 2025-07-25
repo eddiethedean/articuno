@@ -7,6 +7,7 @@ allowing dynamic installation of dependencies after Articuno has been imported.
 
 from typing import Any
 
+
 def is_pandas_df(obj: Any) -> bool:
     """
     Check if the given object is a pandas DataFrame.
@@ -18,6 +19,7 @@ def is_pandas_df(obj: Any) -> bool:
     except ImportError:
         return False
     return isinstance(obj, pd.DataFrame)
+
 
 def is_polars_df(obj: Any) -> bool:
     """
