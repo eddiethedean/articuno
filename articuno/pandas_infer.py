@@ -25,7 +25,7 @@ def is_pyarrow_available() -> bool:
         True if PyArrow can be imported, False otherwise.
     """
     try:
-        import pyarrow  # type: ignore
+        import pyarrow  # type: ignore  # noqa: F401
         return True
     except ImportError:
         return False
@@ -65,6 +65,7 @@ def _infer_type_from_series(
     sample_val = samples[0] if samples else None
 
     # PyArrow-backed checks
+    typ: Any
     if is_pyarrow_available() and hasattr(series.dtype, "arrow_dtype"):
         import pyarrow as pa  # type: ignore
         arrow_dtype = series.dtype.arrow_dtype
@@ -76,6 +77,12 @@ def _infer_type_from_series(
             typ = str
         elif pa.types.is_boolean(arrow_dtype):
             typ = bool
+        elif pa.types.is_timestamp(arrow_dtype):
+            typ = datetime.datetime
+        elif pa.types.is_date(arrow_dtype):
+            typ = datetime.date
+        elif pa.types.is_duration(arrow_dtype):
+            typ = datetime.timedelta
         else:
             typ = Any
     elif pd.api.types.is_integer_dtype(series.dtype):
@@ -88,7 +95,7 @@ def _infer_type_from_series(
         typ = datetime.datetime
     elif pd.api.types.is_object_dtype(series.dtype):
         # Nested dict
-        if all(isinstance(x, dict) for x in samples if x is not None):
+        if samples and all(isinstance(x, dict) for x in samples if x is not None):
             typ = _infer_dict_model(samples, col_name, force_optional=force_optional)
         # List
         elif isinstance(sample_val, list):
@@ -133,7 +140,18 @@ def infer_pydantic_model(
     -------
     Type[BaseModel]
         Dynamically created Pydantic model class.
+        
+    Raises
+    ------
+    ValueError
+        If `model_name` is not a valid Python identifier.
     """
+    if not model_name.isidentifier():
+        raise ValueError(
+            f"Invalid model name '{model_name}'. Model names must be valid Python identifiers "
+            "(start with letter/underscore, contain only letters/digits/underscores)."
+        )
+    
     fields: Dict[str, tuple] = {}
     for col in df.columns:
         series = df[col]
@@ -142,4 +160,4 @@ def infer_pydantic_model(
         )
         fields[col] = (typ, default)
 
-    return create_model(model_name, **fields)
+    return create_model(model_name, **fields)  # type: ignore[call-overload]

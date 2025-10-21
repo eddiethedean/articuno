@@ -5,8 +5,9 @@ Provides a helper to generate nested Pydantic models for dict columns,
 extracted from pandas_infer for reuse in iterable_infer.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from pydantic import create_model
+import datetime
 
 
 def _infer_dict_model(
@@ -30,7 +31,7 @@ def _infer_dict_model(
         A dynamically created nested Pydantic model class for the dict column.
     """
     # Collect all keys present in samples
-    merged_keys = set()
+    merged_keys: set[str] = set()
     for sample in samples:
         merged_keys.update(sample.keys())
 
@@ -40,18 +41,25 @@ def _infer_dict_model(
         always_present = all(key in sample for sample in samples)
         has_null = any(sample.get(key) is None for sample in samples)
         # Pick a representative non-null value
-        non_null_vals = [sample[key] for sample in samples if sample.get(key) is not None]
+        non_null_vals = [sample.get(key) for sample in samples if key in sample and sample.get(key) is not None]
         example = non_null_vals[0] if non_null_vals else None
 
         # Infer type
-        if isinstance(example, int):
+        typ: Any
+        if isinstance(example, bool):
+            typ = bool
+        elif isinstance(example, int):
             typ = int
         elif isinstance(example, float):
             typ = float
         elif isinstance(example, str):
             typ = str
-        elif isinstance(example, bool):
-            typ = bool
+        elif isinstance(example, datetime.datetime):
+            typ = datetime.datetime
+        elif isinstance(example, datetime.date):
+            typ = datetime.date
+        elif isinstance(example, datetime.timedelta):
+            typ = datetime.timedelta
         elif isinstance(example, list):
             typ = List[Any]
         else:
@@ -67,5 +75,5 @@ def _infer_dict_model(
 
         fields[key] = (typ, default)
 
-    model_cls = create_model(f"{field_name}_NestedModel", **fields)
+    model_cls = create_model(f"{field_name}_NestedModel", **fields)  # type: ignore[call-overload]
     return model_cls

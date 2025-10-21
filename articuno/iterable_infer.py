@@ -5,10 +5,11 @@ Provides functions to infer Pydantic models strictly from iterables of dict reco
 using pydantic.create_model and the nested-dict logic extracted.
 """
 
-from typing import Any, Dict, Iterable, Type, Optional, Generator, List, Union
+from typing import Any, Dict, Iterable, Type, Optional, Generator, List
 from pydantic import BaseModel, create_model
 import itertools
 from collections.abc import Mapping
+import datetime
 
 # Nested dict-model logic
 from articuno.dict_model import _infer_dict_model
@@ -42,8 +43,14 @@ def infer_generic_model(
     Raises
     ------
     ValueError
-        If no records are provided.
+        If no records are provided or if `model_name` is not a valid Python identifier.
     """
+    if not model_name.isidentifier():
+        raise ValueError(
+            f"Invalid model name '{model_name}'. Model names must be valid Python identifiers "
+            "(start with letter/underscore, contain only letters/digits/underscores)."
+        )
+    
     # Sample records
     sample = list(itertools.islice(records, scan_limit))
     if not sample:
@@ -67,14 +74,20 @@ def infer_generic_model(
             typ = List[Any]
         else:
             sample_val = non_nulls[0] if non_nulls else None
-            if isinstance(sample_val, int):
+            if isinstance(sample_val, bool):
+                typ = bool
+            elif isinstance(sample_val, int):
                 typ = int
             elif isinstance(sample_val, float):
                 typ = float
-            elif isinstance(sample_val, bool):
-                typ = bool
             elif isinstance(sample_val, str):
                 typ = str
+            elif isinstance(sample_val, datetime.datetime):
+                typ = datetime.datetime
+            elif isinstance(sample_val, datetime.date):
+                typ = datetime.date
+            elif isinstance(sample_val, datetime.timedelta):
+                typ = datetime.timedelta
             else:
                 typ = Any
 
@@ -89,7 +102,7 @@ def infer_generic_model(
         fields[key] = (typ, default)
 
     # Create model
-    Model = create_model(model_name, **fields)
+    Model = create_model(model_name, **fields)  # type: ignore[call-overload]
     return Model
 
 

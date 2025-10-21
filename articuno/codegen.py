@@ -103,12 +103,15 @@ def generate_class_code(
 
     schema_path, temp_dir = _write_json_schema_to_tempfile(schema)
 
-    if output_path:
-        generate(
-            input_=schema_path,
-            input_file_type=InputFileType.JsonSchema,
-            output=Path(output_path),
-        )
-        return Path(output_path).read_text(encoding="utf-8")
-    else:
-        return _run_datamodel_codegen(schema_path)
+    try:
+        if output_path:
+            generate(
+                input_=schema_path,
+                input_file_type=InputFileType.JsonSchema,
+                output=Path(output_path),
+            )
+            return Path(output_path).read_text(encoding="utf-8")
+        else:
+            return _run_datamodel_codegen(schema_path)
+    finally:
+        temp_dir.cleanup()

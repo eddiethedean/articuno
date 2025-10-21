@@ -26,3 +26,14 @@ notebooks/
 *.orig
 *.tmp
 *.pid
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints/
+
+# Ruff
+.ruff_cache/
+
+# Benchmarks
+.benchmarks/
+benchmarks/
