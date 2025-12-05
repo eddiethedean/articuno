@@ -41,7 +41,11 @@ def _infer_dict_model(
         always_present = all(key in sample for sample in samples)
         has_null = any(sample.get(key) is None for sample in samples)
         # Pick a representative non-null value
-        non_null_vals = [sample.get(key) for sample in samples if key in sample and sample.get(key) is not None]
+        non_null_vals = [
+            sample.get(key)
+            for sample in samples
+            if key in sample and sample.get(key) is not None
+        ]
         example = non_null_vals[0] if non_null_vals else None
 
         # Infer type
@@ -68,6 +72,7 @@ def _infer_dict_model(
         # Apply optionality
         if force_optional or not always_present or has_null:
             from typing import Optional as _Opt
+
             typ = _Opt[typ]
             default = None
         else:

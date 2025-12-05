@@ -14,7 +14,9 @@ from datamodel_code_generator import InputFileType, generate
 from pydantic import BaseModel
 
 
-def _write_json_schema_to_tempfile(schema: dict) -> Tuple[Path, tempfile.TemporaryDirectory]:
+def _write_json_schema_to_tempfile(
+    schema: dict,
+) -> Tuple[Path, tempfile.TemporaryDirectory]:
     """
     Write a JSON schema to a temporary file.
 

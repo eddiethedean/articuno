@@ -20,7 +20,7 @@ def infer_pydantic_model(
 
     Returns:
         A dynamically created Pydantic model class.
-        
+
     Raises:
         ValueError: If `model_name` is not a valid Python identifier.
     """
@@ -29,10 +29,8 @@ def infer_pydantic_model(
             f"Invalid model name '{model_name}'. Model names must be valid Python identifiers "
             "(start with letter/underscore, contain only letters/digits/underscores)."
         )
-    
+
     schema = df.schema
-    return to_pydantic_model(
-        schema,
-        model_name=model_name,
-        force_optional=force_optional
+    return to_pydantic_model(  # type: ignore[no-any-return]
+        schema, model_name=model_name, force_optional=force_optional
     )

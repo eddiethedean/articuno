@@ -1,6 +1,6 @@
 # ❄️ Articuno ❄️
 
-Convert Polars or Pandas DataFrames to Pydantic models with schema inference — and generate clean Python class code.
+Convert Polars, Pandas, PySpark DataFrames, SQLAlchemy models, or SQLModel classes to Pydantic models with schema inference — and generate clean Python class code. Also supports bidirectional conversion from Pydantic to these formats.
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Type Checked](https://img.shields.io/badge/type--checked-mypy-blue.svg)](http://mypy-lang.org/)
@@ -12,10 +12,12 @@ Convert Polars or Pandas DataFrames to Pydantic models with schema inference —
 ## ✨ Features
 
 **Core Functionality:**
-- 🔍 Infer Pydantic models dynamically from **Polars** or **Pandas** DataFrames
+- 🔍 Infer Pydantic models dynamically from **Polars**, **Pandas**, or **PySpark** DataFrames
+- 🗄️ Convert **SQLAlchemy** and **SQLModel** model classes to/from Pydantic
 - 📋 Infer models directly from **iterables of dictionaries** (SQL results, JSON records, etc.)
 - 🎯 **Automatic type detection** for basic types, nested structures, and temporal data
 - 🔄 **Generator-based** for memory-efficient processing of large datasets
+- 🔁 **Bidirectional conversions** between Pydantic and supported backends
 - 🎨 Generate clean Python model code using [datamodel-code-generator](https://github.com/koxudaxi/datamodel-code-generator)
 
 **Advanced Features:**
@@ -30,7 +32,7 @@ Convert Polars or Pandas DataFrames to Pydantic models with schema inference —
 
 **Design:**
 - 🪶 Lightweight, dependency-flexible architecture
-- 🔌 Optional dependencies for Polars, Pandas, and PyArrow
+- 🔌 Optional dependencies for Polars, Pandas, PyArrow, SQLAlchemy, SQLModel, and PySpark
 - 🎯 Type-checked with mypy
 - 📏 Linted with ruff
 
@@ -53,8 +55,17 @@ pip install articuno[polars]
 # For Pandas support (with PyArrow)
 pip install articuno[pandas]
 
+# For SQLAlchemy support
+pip install articuno[sqlalchemy]
+
+# For SQLModel support
+pip install articuno[sqlmodel]
+
+# For PySpark support
+pip install articuno[pyspark]
+
 # Full install with all backends
-pip install articuno[polars,pandas]
+pip install articuno[polars,pandas,sqlalchemy,sqlmodel,pyspark]
 
 # Development dependencies (includes pytest, mypy, ruff)
 pip install articuno[dev]
@@ -300,22 +311,116 @@ class UserModel(BaseModel):
 instances = list(df_to_pydantic(df, model=UserModel))
 ```
 
+### SQLAlchemy Model Conversion
+
+Convert between SQLAlchemy declarative models and Pydantic:
+
+```python
+from sqlalchemy import Column, Integer, String, Float
+from sqlalchemy.orm import DeclarativeBase
+from articuno import infer_pydantic_model, pydantic_to_sqlalchemy
+
+class Base(DeclarativeBase):
+    pass
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False)
+    email = Column(String(255), nullable=True)
+
+# Convert SQLAlchemy model to Pydantic
+PydanticModel = infer_pydantic_model(User, model_name="UserModel")
+
+# Convert Pydantic model to SQLAlchemy
+from pydantic import BaseModel as PydanticBase
+
+class ProductModel(PydanticBase):
+    id: int
+    name: str
+    price: float
+
+SQLAlchemyModel = pydantic_to_sqlalchemy(ProductModel, model_name="Product")
+```
+
+### SQLModel Conversion
+
+Convert between SQLModel and Pydantic (SQLModel already extends Pydantic):
+
+```python
+from sqlmodel import SQLModel, Field
+from articuno import infer_pydantic_model, pydantic_to_sqlmodel
+
+class User(SQLModel, table=True):
+    __tablename__ = "users"
+    id: int | None = Field(default=None, primary_key=True)
+    name: str
+    email: str | None = None
+
+# Convert SQLModel to Pydantic
+PydanticModel = infer_pydantic_model(User, model_name="UserModel")
+
+# Convert Pydantic to SQLModel
+from pydantic import BaseModel
+
+class ProductModel(BaseModel):
+    id: int | None = None
+    name: str
+    price: float
+
+SQLModelClass = pydantic_to_sqlmodel(ProductModel, model_name="Product")
+```
+
+### PySpark DataFrame Conversion
+
+Convert between PySpark DataFrames and Pydantic:
+
+```python
+from pyspark.sql import SparkSession
+from pyspark.sql.types import StructType, StructField, LongType, StringType
+from articuno import infer_pydantic_model, df_to_pydantic, pydantic_to_pyspark
+
+spark = SparkSession.builder.appName("articuno").getOrCreate()
+
+# Create PySpark DataFrame
+data = [(1, "Alice"), (2, "Bob")]
+schema = StructType([
+    StructField("id", LongType(), False),
+    StructField("name", StringType(), False),
+])
+df = spark.createDataFrame(data, schema=schema)
+
+# Convert PySpark DataFrame to Pydantic
+Model = infer_pydantic_model(df, model_name="UserModel")
+instances = list(df_to_pydantic(df, model=Model))
+
+# Convert Pydantic instances to PySpark DataFrame
+from pydantic import BaseModel
+
+class UserModel(BaseModel):
+    id: int
+    name: str
+
+instances = [UserModel(id=1, name="Alice"), UserModel(id=2, name="Bob")]
+df = pydantic_to_pyspark(instances, model=UserModel)
+```
+
 ---
 
 ## ⚙️ Supported Type Mappings
 
-| Polars Type          | Pandas Type (incl. PyArrow)                      | Dict/Iterable     | Pydantic Type        |
-|----------------------|--------------------------------------------------|-------------------|----------------------|
-| `pl.Int*`, `pl.UInt*`| `int64`, `Int64`, `int64[pyarrow]`              | `int`             | `int`                |
-| `pl.Float*`          | `float64`, `float64[pyarrow]`                   | `float`           | `float`              |
-| `pl.Utf8`, `pl.String`| `object`, `string[pyarrow]`                     | `str`             | `str`                |
-| `pl.Boolean`         | `bool`, `bool[pyarrow]`                         | `bool`            | `bool`               |
-| `pl.Date`            | `datetime64[ns]`, `date[pyarrow]`               | `date`            | `datetime.date`      |
-| `pl.Datetime`        | `datetime64[ns]`, `timestamp[pyarrow]`          | `datetime`        | `datetime.datetime`  |
-| `pl.Duration`        | `timedelta64[ns]`, `duration[pyarrow]`          | `timedelta`       | `datetime.timedelta` |
-| `pl.List`            | `list`                                           | `list`            | `List[...]`          |
-| `pl.Struct`          | `dict` (nested)                                  | `dict` (nested)   | Nested `BaseModel`   |
-| `pl.Null`            | `None`, `NaN`                                    | `None`            | `Optional[...]`      |
+| Polars Type          | Pandas Type (incl. PyArrow)                      | Dict/Iterable     | SQLAlchemy Type      | SQLModel Type      | PySpark Type       | Pydantic Type        |
+|----------------------|--------------------------------------------------|-------------------|----------------------|-------------------|-------------------|----------------------|
+| `pl.Int*`, `pl.UInt*`| `int64`, `Int64`, `int64[pyarrow]`              | `int`             | `Integer`, `BigInteger` | `int`          | `IntegerType`, `LongType` | `int`                |
+| `pl.Float*`          | `float64`, `float64[pyarrow]`                   | `float`           | `Float`, `Numeric`   | `float`          | `FloatType`, `DoubleType` | `float`              |
+| `pl.Utf8`, `pl.String`| `object`, `string[pyarrow]`                     | `str`             | `String`, `Text`     | `str`            | `StringType`       | `str`                |
+| `pl.Boolean`         | `bool`, `bool[pyarrow]`                         | `bool`            | `Boolean`            | `bool`           | `BooleanType`      | `bool`               |
+| `pl.Date`            | `datetime64[ns]`, `date[pyarrow]`               | `date`            | `Date`               | `date`           | `DateType`         | `datetime.date`      |
+| `pl.Datetime`        | `datetime64[ns]`, `timestamp[pyarrow]`          | `datetime`        | `DateTime`           | `datetime`       | `TimestampType`    | `datetime.datetime`  |
+| `pl.Duration`        | `timedelta64[ns]`, `duration[pyarrow]`          | `timedelta`       | -                    | -                | -                  | `datetime.timedelta` |
+| `pl.List`            | `list`                                           | `list`            | -                    | `List[...]`      | `ArrayType`        | `List[...]`          |
+| `pl.Struct`          | `dict` (nested)                                  | `dict` (nested)   | -                    | -                | `StructType`       | Nested `BaseModel`   |
+| `pl.Null`            | `None`, `NaN`                                    | `None`            | `nullable=True`      | `Optional[...]`  | `nullable=True`    | `Optional[...]`      |
 
 ---
 

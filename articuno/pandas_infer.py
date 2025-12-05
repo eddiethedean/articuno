@@ -26,6 +26,7 @@ def is_pyarrow_available() -> bool:
     """
     try:
         import pyarrow  # type: ignore  # noqa: F401
+
         return True
     except ImportError:
         return False
@@ -68,6 +69,7 @@ def _infer_type_from_series(
     typ: Any
     if is_pyarrow_available() and hasattr(series.dtype, "arrow_dtype"):
         import pyarrow as pa  # type: ignore
+
         arrow_dtype = series.dtype.arrow_dtype
         if pa.types.is_integer(arrow_dtype):
             typ = int
@@ -111,6 +113,7 @@ def _infer_type_from_series(
     # Assign default and optional
     if force_optional or nullable:
         from typing import Optional as _Opt
+
         typ = _Opt[typ]
         default = None
     else:
@@ -140,7 +143,7 @@ def infer_pydantic_model(
     -------
     Type[BaseModel]
         Dynamically created Pydantic model class.
-        
+
     Raises
     ------
     ValueError
@@ -151,7 +154,7 @@ def infer_pydantic_model(
             f"Invalid model name '{model_name}'. Model names must be valid Python identifiers "
             "(start with letter/underscore, contain only letters/digits/underscores)."
         )
-    
+
     fields: Dict[str, tuple] = {}
     for col in df.columns:
         series = df[col]
@@ -160,4 +163,4 @@ def infer_pydantic_model(
         )
         fields[col] = (typ, default)
 
-    return create_model(model_name, **fields)  # type: ignore[call-overload]
+    return create_model(model_name, **fields)  # type: ignore[call-overload, no-any-return]

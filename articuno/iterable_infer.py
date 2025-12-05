@@ -50,7 +50,7 @@ def infer_generic_model(
             f"Invalid model name '{model_name}'. Model names must be valid Python identifiers "
             "(start with letter/underscore, contain only letters/digits/underscores)."
         )
-    
+
     # Sample records
     sample = list(itertools.islice(records, scan_limit))
     if not sample:
@@ -94,6 +94,7 @@ def infer_generic_model(
         # Apply optional if needed
         if force_optional or has_null or not always_present:
             from typing import Optional as _Opt
+
             typ = _Opt[typ]
             default = None
         else:
@@ -102,8 +103,8 @@ def infer_generic_model(
         fields[key] = (typ, default)
 
     # Create model
-    Model = create_model(model_name, **fields)  # type: ignore[call-overload]
-    return Model
+    Model = create_model(model_name, **fields)  # type: ignore[call-overload, no-any-return]
+    return Model  # type: ignore[no-any-return]
 
 
 def dicts_to_pydantic(
